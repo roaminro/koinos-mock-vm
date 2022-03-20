@@ -1,6 +1,10 @@
 const multibase = require('multibase')
 const secp = require('@noble/secp256k1')
 const { ripemd160 } = require('@noble/hashes/ripemd160')
+const { sha256 } = require('@noble/hashes/sha256')
+const { sha512 } = require('@noble/hashes/sha512')
+// eslint-disable-next-line camelcase
+const { keccak_256 } = require('@noble/hashes/sha3')
 const crypto = require('crypto')
 
 // see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
@@ -60,8 +64,8 @@ function bitcoinEncode (
     prefixBuffer[0] = 128
   }
   prefixBuffer.set(buffer, 1)
-  const firstHash = crypto.createHash('sha256').update(prefixBuffer).digest()
-  const doubleHash = crypto.createHash('sha256').update(firstHash).digest()
+  const firstHash = sha256(prefixBuffer)
+  const doubleHash = sha256(firstHash)
   const checksum = new Uint8Array(4)
   checksum.set(doubleHash.slice(0, 4))
   bufferCheck.set(buffer, 1)
@@ -71,7 +75,7 @@ function bitcoinEncode (
 
 // see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function bitcoinAddress (publicKey) {
-  const hash = crypto.createHash('sha256').update(publicKey).digest()
+  const hash = sha256(publicKey)
   const hash160 = ripemd160(hash)
   return bitcoinEncode(hash160, 'public')
 }
@@ -109,8 +113,26 @@ function recoverPublicKey (
   return secp.Point.fromHex(publicKey).toRawBytes(true)
 }
 
+function hashSHA1 (obj) {
+  const digest = crypto.createHash('sha1').update(obj).digest()
+
+  return new Uint8Array([18, 20, ...digest])
+}
+
 function hashSHA256 (obj) {
-  const digest = crypto.createHash('sha256').update(obj).digest()
+  const digest = sha256(obj)
+
+  return new Uint8Array([18, 32, ...digest])
+}
+
+function hashSHA512 (obj) {
+  const digest = sha512(obj)
+
+  return new Uint8Array([18, 64, ...digest])
+}
+
+function hashKeccak256 (obj) {
+  const digest = keccak_256(obj)
 
   return new Uint8Array([18, 32, ...digest])
 }
@@ -230,7 +252,10 @@ module.exports = {
   decodeBase58,
   encodeBase64,
   decodeBase64,
+  hashSHA1,
   hashSHA256,
+  hashSHA512,
+  hashKeccak256,
   hashRIPEMD160,
   bitcoinAddress,
   recoverPublicKey,

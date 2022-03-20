@@ -1,7 +1,7 @@
 const protobuf = require('protobufjs')
 const path = require('path')
 const { Database } = require('./database')
-const { hashSHA256, hashRIPEMD160, recoverPublicKey, arraysAreEqual, getNestedFieldValue, encodeBase58 } = require('./util')
+const { hashSHA256, hashRIPEMD160, recoverPublicKey, arraysAreEqual, getNestedFieldValue, encodeBase58, hashSHA1, hashSHA512, hashKeccak256 } = require('./util')
 
 const METADATA_SPACE = {
   system: true,
@@ -408,14 +408,31 @@ class MockVM {
           const args = this.hashArgs.decode(argsBuf)
           let digest = null
 
-          // SHA2_256: 0x12
-          if (args.code.toInt() === 0x12) {
-            digest = hashSHA256(args.obj)
-          } else if (args.code.toInt() === 0x1053) {
+          const hashCode = args.code.toInt()
+
+          switch (hashCode) {
+            // SHA1: 0x11
+            case 0x11:
+              digest = hashSHA1(args.obj)
+              break
+            // SHA2_256: 0x12
+            case 0x12:
+              digest = hashSHA256(args.obj)
+              break
+            // SHA2_512: 0x13
+            case 0x13:
+              digest = hashSHA512(args.obj)
+              break
+            // Keccak_256: 0x1b
+            case 0x1b:
+              digest = hashKeccak256(args.obj)
+              break
             // RIPEMD_160: 0x1053
-            digest = hashRIPEMD160(args.obj)
-          } else {
-            throw new Error('unknown hash code')
+            case 0x1053:
+              digest = hashRIPEMD160(args.obj)
+              break
+            default:
+              throw new Error('unknown hash code')
           }
 
           const buffer = this.hashRes.encode({ value: digest }).finish()
