@@ -1,30 +1,39 @@
+/* eslint-disable camelcase */
 const protobuf = require('protobufjs')
 const path = require('path')
 const { Database } = require('./database')
-const { hashSHA256, hashRIPEMD160, recoverPublicKey, arraysAreEqual, getNestedFieldValue, encodeBase58, hashSHA1, hashSHA512, hashKeccak256 } = require('./util')
-
-const METADATA_SPACE = {
-  system: true,
-  id: 0
-}
-
-const ENTRY_POINT_KEY = new TextEncoder('utf-8').encode('entry_point')
-const CONTRACT_ARGUMENTS_KEY = new TextEncoder('utf-8').encode('contract_arguments')
-const CONTRACT_RESULT_KEY = new TextEncoder('utf-8').encode('contract_result')
-const CONTRACT_ID_KEY = new TextEncoder('utf-8').encode('contract_id')
-const HEAD_INFO_KEY = new TextEncoder('utf-8').encode('head_info')
-const CALLER_KEY = new TextEncoder('utf-8').encode('caller')
-const LAST_IRREVERSIBLE_BLOCK_KEY = new TextEncoder('utf-8').encode('last_irreversible_block')
-const TRANSACTION_KEY = new TextEncoder('utf-8').encode('transaction')
-const BLOCK_KEY = new TextEncoder('utf-8').encode('block')
-const AUTHORITY_KEY = new TextEncoder('utf-8').encode('authority')
-const RESET_KEY = new TextEncoder('utf-8').encode('reset')
-const LOGS_KEY = new TextEncoder('utf-8').encode('logs')
-const EVENTS_KEY = new TextEncoder('utf-8').encode('events')
-const EXIT_CODE_KEY = new TextEncoder('utf-8').encode('exit_code')
-const BEGIN_TRANSACTION_KEY = new TextEncoder('utf-8').encode('begin_transaction')
-const ROLLBACK_TRANSACTION_KEY = new TextEncoder('utf-8').encode('rollback_transaction')
-const COMMIT_TRANSACTION_KEY = new TextEncoder('utf-8').encode('commit_transaction')
+const { ExitSuccess, ExitFailure, ExitUnknown } = require('./errors')
+const {
+  recoverPublicKey,
+  arraysAreEqual,
+  getNestedFieldValue,
+  encodeBase58,
+  hashSHA1,
+  hashSHA256,
+  hashSHA512,
+  hashKeccak256,
+  hashRIPEMD160
+} = require('./util')
+const {
+  METADATA_SPACE,
+  ENTRY_POINT_KEY,
+  CONTRACT_ARGUMENTS_KEY,
+  CONTRACT_RESULT_KEY,
+  CONTRACT_ID_KEY,
+  HEAD_INFO_KEY,
+  CALLER_KEY,
+  LAST_IRREVERSIBLE_BLOCK_KEY,
+  TRANSACTION_KEY,
+  BLOCK_KEY,
+  AUTHORITY_KEY,
+  RESET_KEY,
+  LOGS_KEY,
+  EVENTS_KEY,
+  EXIT_CODE_KEY,
+  BEGIN_TRANSACTION_KEY,
+  ROLLBACK_TRANSACTION_KEY,
+  COMMIT_TRANSACTION_KEY
+} = require('./constants')
 
 class MockVM {
   init () {
@@ -115,7 +124,6 @@ class MockVM {
     this.memory = _instance.exports.memory
   }
 
-  // eslint-disable-next-line camelcase
   invokeSystemCall (sid, ret_ptr, ret_len, arg_ptr, arg_len) {
     try {
       const argsBuf = new Uint8Array(this.memory.buffer, arg_ptr, arg_len)
@@ -124,32 +132,22 @@ class MockVM {
       let retVal = 0
       switch (this.systemCallIDs.valuesById[sid]) {
         case 'exit_contract': {
-          const args = this.exitContractArgs.decode(argsBuf)
+          const { exit_code } = this.exitContractArgs.decode(argsBuf)
 
-          const dbArgs = {
-            space: METADATA_SPACE,
-            key: EXIT_CODE_KEY
+          switch (exit_code) {
+            case 0:
+              throw new ExitSuccess(`Exiting the contract with exit code ${exit_code}`, argsBuf)
+            case 1:
+              throw new ExitFailure(`Exiting the contract with exit code ${exit_code}`, argsBuf)
+            default:
+              throw new ExitUnknown('Exiting the contract with unknown exit code', argsBuf)
           }
-
-          if (args.exit_code === 0) {
-            this.db.commitTransaction()
-          } else {
-            this.db.rollbackTransaction()
-          }
-
-          this.db.putObject(dbArgs.space, dbArgs.key, argsBuf)
-
-          throw new Error(`Exiting the contract with exit code ${args.exit_code}`)
         }
         case 'log': {
-          const args = this.logArgs.decode(argsBuf)
-          console.log('Log:', args.message)
+          const { message } = this.logArgs.decode(argsBuf)
+          console.log('Log:', message)
 
-          const dbArgs = {
-            space: METADATA_SPACE,
-            key: LOGS_KEY
-          }
-          const logsBytes = this.db.getObject(dbArgs.space, dbArgs.key)
+          const logsBytes = this.db.getObject(METADATA_SPACE, LOGS_KEY)
 
           let logs
           if (logsBytes) {
@@ -158,20 +156,16 @@ class MockVM {
             logs = this.listType.create()
           }
 
-          logs.values.push(this.valueType.create({ string_value: args.message }))
+          logs.values.push(this.valueType.create({ string_value: message }))
 
-          this.db.putObject(dbArgs.space, dbArgs.key, this.listType.encode(logs).finish())
+          this.db.putObject(METADATA_SPACE, LOGS_KEY, this.listType.encode(logs).finish())
           break
         }
         case 'event': {
-          const args = this.eventArgs.decode(argsBuf)
-          console.log('Event:', args.name, '/', args.impacted.map((acc) => encodeBase58(acc)), '/', args.data.toString())
+          const { name, impacted, data } = this.eventArgs.decode(argsBuf)
+          console.log('Event:', name, '/', impacted.map((acc) => encodeBase58(acc)), '/', data.toString())
 
-          const dbArgs = {
-            space: METADATA_SPACE,
-            key: EVENTS_KEY
-          }
-          const eventsBytes = this.db.getObject(dbArgs.space, dbArgs.key)
+          const eventsBytes = this.db.getObject(METADATA_SPACE, EVENTS_KEY)
 
           let events
           if (eventsBytes) {
@@ -182,62 +176,45 @@ class MockVM {
 
           events.values.push(this.valueType.create({ bytes_value: argsBuf }))
 
-          this.db.putObject(dbArgs.space, dbArgs.key, this.listType.encode(events).finish())
+          this.db.putObject(METADATA_SPACE, EVENTS_KEY, this.listType.encode(events).finish())
           break
         }
         case 'set_contract_result': {
-          const args = this.setContractResultArgs.decode(argsBuf)
+          const { value } = this.setContractResultArgs.decode(argsBuf)
 
-          const dbArgs = {
-            space: METADATA_SPACE,
-            key: CONTRACT_RESULT_KEY
-          }
-
-          this.db.putObject(dbArgs.space, dbArgs.key, args.value)
+          this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
           break
         }
         case 'get_entry_point': {
-          const args = {
-            space: METADATA_SPACE,
-            key: ENTRY_POINT_KEY
-          }
-          const dbObject = this.db.getObject(args.space, args.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, ENTRY_POINT_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(ENTRY_POINT_KEY)} is not set`)
           }
 
-          const entryPointObj = this.valueType.decode(dbObject.value)
+          const { int32_value } = this.valueType.decode(dbObject.value)
 
-          const buffer = this.getEntryPointRes.encode({ value: entryPointObj.int32_value }).finish()
+          const buffer = this.getEntryPointRes.encode({ value: int32_value }).finish()
           buffer.copy(retBuf)
           retVal = buffer.byteLength
           break
         }
         case 'get_last_irreversible_block': {
-          const args = {
-            space: METADATA_SPACE,
-            key: LAST_IRREVERSIBLE_BLOCK_KEY
-          }
-          const dbObject = this.db.getObject(args.space, args.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, LAST_IRREVERSIBLE_BLOCK_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(LAST_IRREVERSIBLE_BLOCK_KEY)} is not set`)
           }
 
-          const lastIrreversibleBlockObj = this.valueType.decode(dbObject.value)
+          const { uint64_value } = this.valueType.decode(dbObject.value)
 
-          const buffer = this.getLastIrreversibleBlock.encode({ value: lastIrreversibleBlockObj.uint64_value }).finish()
+          const buffer = this.getLastIrreversibleBlock.encode({ value: uint64_value }).finish()
           buffer.copy(retBuf)
           retVal = buffer.byteLength
           break
         }
         case 'get_contract_arguments': {
-          const args = {
-            space: METADATA_SPACE,
-            key: CONTRACT_ARGUMENTS_KEY
-          }
-          const dbObject = this.db.getObject(args.space, args.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, CONTRACT_ARGUMENTS_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(CONTRACT_ARGUMENTS_KEY)} is not set`)
@@ -249,11 +226,7 @@ class MockVM {
           break
         }
         case 'get_contract_id': {
-          const args = {
-            space: METADATA_SPACE,
-            key: CONTRACT_ID_KEY
-          }
-          const dbObject = this.db.getObject(args.space, args.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, CONTRACT_ID_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(CONTRACT_ID_KEY)} is not set`)
@@ -265,11 +238,7 @@ class MockVM {
           break
         }
         case 'get_head_info': {
-          const args = {
-            space: METADATA_SPACE,
-            key: HEAD_INFO_KEY
-          }
-          const dbObject = this.db.getObject(args.space, args.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, HEAD_INFO_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(HEAD_INFO_KEY)} is not set`)
@@ -283,11 +252,7 @@ class MockVM {
           break
         }
         case 'get_caller': {
-          const args = {
-            space: METADATA_SPACE,
-            key: CALLER_KEY
-          }
-          const dbObject = this.db.getObject(args.space, args.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, CALLER_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(CALLER_KEY)} is not set`)
@@ -301,60 +266,55 @@ class MockVM {
           break
         }
         case 'require_authority': {
-          const args = this.requireAuthorityArgs.decode(argsBuf)
+          const { type, account } = this.requireAuthorityArgs.decode(argsBuf)
 
-          const dbARgs = {
-            space: METADATA_SPACE,
-            key: AUTHORITY_KEY
-          }
-
-          const dbObject = this.db.getObject(dbARgs.space, dbARgs.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, AUTHORITY_KEY)
 
           if (!dbObject) {
-            throw new Error('not authorized')
+            throw new Error(`${new TextDecoder().decode(AUTHORITY_KEY)} is not set`)
           }
 
-          const authorities = this.listType.decode(dbObject.value)
+          const { values } = this.listType.decode(dbObject.value)
 
           let authorized = false
 
-          for (let index = 0; index < authorities.values.length; index++) {
-            const authority = authorities.values[index]
+          for (let index = 0; index < values.length; index++) {
+            const authority = values[index]
 
-            if (arraysAreEqual(authority.bytes_value, args.account) &&
-              authority.int32_value === args.type) {
+            if (arraysAreEqual(authority.bytes_value, account) &&
+              authority.int32_value === type) {
               authorized = authority.bool_value
               break
             }
           }
 
           if (!authorized) {
-            throw new Error('not authorized')
+            throw new Error(`account ${encodeBase58(account)} has not authorized action`)
           }
 
           break
         }
         case 'put_object': {
-          const args = this.putObjectArgs.decode(argsBuf)
+          const { space, key, obj } = this.putObjectArgs.decode(argsBuf)
 
-          if (args.space.system === METADATA_SPACE.system &&
-            args.space.id === METADATA_SPACE.id &&
-            arraysAreEqual(args.key, BEGIN_TRANSACTION_KEY)) {
+          if (space.system === METADATA_SPACE.system &&
+            space.id === METADATA_SPACE.id &&
+            arraysAreEqual(key, BEGIN_TRANSACTION_KEY)) {
             this.db.beginTransaction()
-          } else if (args.space.system === METADATA_SPACE.system &&
-            args.space.id === METADATA_SPACE.id &&
-            arraysAreEqual(args.key, COMMIT_TRANSACTION_KEY)) {
+          } else if (space.system === METADATA_SPACE.system &&
+            space.id === METADATA_SPACE.id &&
+            arraysAreEqual(key, COMMIT_TRANSACTION_KEY)) {
             this.db.commitTransaction()
-          } else if (args.space.system === METADATA_SPACE.system &&
-            args.space.id === METADATA_SPACE.id &&
-            arraysAreEqual(args.key, ROLLBACK_TRANSACTION_KEY)) {
+          } else if (space.system === METADATA_SPACE.system &&
+            space.id === METADATA_SPACE.id &&
+            arraysAreEqual(key, ROLLBACK_TRANSACTION_KEY)) {
             this.db.rollbackTransaction()
-          } else if (args.space.system === METADATA_SPACE.system &&
-            args.space.id === METADATA_SPACE.id &&
-            arraysAreEqual(args.key, RESET_KEY)) {
+          } else if (space.system === METADATA_SPACE.system &&
+            space.id === METADATA_SPACE.id &&
+            arraysAreEqual(key, RESET_KEY)) {
             this.db.initDb()
           } else {
-            const bytesUsed = this.db.putObject(args.space, args.key, args.obj)
+            const bytesUsed = this.db.putObject(space, key, obj)
 
             const buffer = this.putObjectRes.encode({ value: bytesUsed }).finish()
             buffer.copy(retBuf)
@@ -364,9 +324,9 @@ class MockVM {
           break
         }
         case 'get_object': {
-          const args = this.getObjectArgs.decode(argsBuf)
+          const { space, key } = this.getObjectArgs.decode(argsBuf)
 
-          const dbObject = this.db.getObject(args.space, args.key)
+          const dbObject = this.db.getObject(space, key)
 
           if (dbObject) {
             const buffer = this.getObjectRes.encode({ value: dbObject }).finish()
@@ -376,16 +336,17 @@ class MockVM {
           break
         }
         case 'remove_object': {
-          const args = this.removeObjectArgs.decode(argsBuf)
+          const { space, key } = this.removeObjectArgs.decode(argsBuf)
 
-          this.db.removeObject(args.space, args.key)
+          this.db.removeObject(space, key)
 
           break
         }
         case 'get_next_object': {
-          const args = this.getNextObjectArgs.decode(argsBuf)
+          const { space, key } = this.getNextObjectArgs.decode(argsBuf)
 
-          const dbObject = this.db.getNextObject(args.space, args.key)
+          const dbObject = this.db.getNextObject(space, key)
+
           if (dbObject) {
             const buffer = this.getNextObjectRes.encode({ value: dbObject }).finish()
             buffer.copy(retBuf)
@@ -394,9 +355,10 @@ class MockVM {
           break
         }
         case 'get_prev_object': {
-          const args = this.getPrevObjectArgs.decode(argsBuf)
+          const { space, key } = this.getPrevObjectArgs.decode(argsBuf)
 
-          const dbObject = this.db.getPrevObject(args.space, args.key)
+          const dbObject = this.db.getPrevObject(space, key)
+
           if (dbObject) {
             const buffer = this.getPrevObjectRes.encode({ value: dbObject }).finish()
             buffer.copy(retBuf)
@@ -405,31 +367,31 @@ class MockVM {
           break
         }
         case 'hash': {
-          const args = this.hashArgs.decode(argsBuf)
+          const { code, obj } = this.hashArgs.decode(argsBuf)
           let digest = null
 
-          const hashCode = args.code.toInt()
+          const hashCode = code.toInt()
 
           switch (hashCode) {
             // SHA1: 0x11
             case 0x11:
-              digest = hashSHA1(args.obj)
+              digest = hashSHA1(obj)
               break
             // SHA2_256: 0x12
             case 0x12:
-              digest = hashSHA256(args.obj)
+              digest = hashSHA256(obj)
               break
             // SHA2_512: 0x13
             case 0x13:
-              digest = hashSHA512(args.obj)
+              digest = hashSHA512(obj)
               break
             // Keccak_256: 0x1b
             case 0x1b:
-              digest = hashKeccak256(args.obj)
+              digest = hashKeccak256(obj)
               break
             // RIPEMD_160: 0x1053
             case 0x1053:
-              digest = hashRIPEMD160(args.obj)
+              digest = hashRIPEMD160(obj)
               break
             default:
               throw new Error('unknown hash code')
@@ -441,13 +403,13 @@ class MockVM {
           break
         }
         case 'recover_public_key': {
-          const args = this.recoverPublicKeyArgs.decode(argsBuf)
+          const { type, signature, digest } = this.recoverPublicKeyArgs.decode(argsBuf)
 
-          if (this.dsa.valuesById[args.type] !== 'ecdsa_secp256k1') {
+          if (this.dsa.valuesById[type] !== 'ecdsa_secp256k1') {
             throw new Error('unexpected dsa')
           }
 
-          const recoveredKey = recoverPublicKey(args.digest, args.signature)
+          const recoveredKey = recoverPublicKey(digest, signature)
 
           const buffer = this.recoverPublicKeyRes.encode({ value: recoveredKey }).finish()
           buffer.copy(retBuf)
@@ -455,25 +417,21 @@ class MockVM {
           break
         }
         case 'verify_signature': {
-          const args = this.verifySignatureArgs.decode(argsBuf)
+          const { public_key, type, signature, digest } = this.verifySignatureArgs.decode(argsBuf)
 
-          if (this.dsa.valuesById[args.type] !== 'ecdsa_secp256k1') {
+          if (this.dsa.valuesById[type] !== 'ecdsa_secp256k1') {
             throw new Error('unexpected dsa')
           }
 
-          const recoveredKey = recoverPublicKey(args.digest, args.signature)
+          const recoveredKey = recoverPublicKey(digest, signature)
 
-          const buffer = this.verifySignatureRes.encode({ value: arraysAreEqual(args.public_key, recoveredKey) }).finish()
+          const buffer = this.verifySignatureRes.encode({ value: arraysAreEqual(public_key, recoveredKey) }).finish()
           buffer.copy(retBuf)
           retVal = buffer.byteLength
           break
         }
         case 'get_transaction': {
-          const args = {
-            space: METADATA_SPACE,
-            key: TRANSACTION_KEY
-          }
-          const dbObject = this.db.getObject(args.space, args.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, TRANSACTION_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(TRANSACTION_KEY)} is not set`)
@@ -489,11 +447,7 @@ class MockVM {
         case 'get_transaction_field': {
           const { field } = this.getTransactionFieldArgs.decode(argsBuf)
 
-          const dbArgs = {
-            space: METADATA_SPACE,
-            key: TRANSACTION_KEY
-          }
-          const dbObject = this.db.getObject(dbArgs.space, dbArgs.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, TRANSACTION_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(TRANSACTION_KEY)} is not set`)
@@ -508,11 +462,7 @@ class MockVM {
           break
         }
         case 'get_block': {
-          const args = {
-            space: METADATA_SPACE,
-            key: BLOCK_KEY
-          }
-          const dbObject = this.db.getObject(args.space, args.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, BLOCK_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(BLOCK_KEY)} is not set`)
@@ -527,12 +477,7 @@ class MockVM {
         }
         case 'get_block_field': {
           const { field } = this.getBlockFiledArgs.decode(argsBuf)
-
-          const dbArgs = {
-            space: METADATA_SPACE,
-            key: BLOCK_KEY
-          }
-          const dbObject = this.db.getObject(dbArgs.space, dbArgs.key)
+          const dbObject = this.db.getObject(METADATA_SPACE, BLOCK_KEY)
 
           if (!dbObject) {
             throw new Error(`${new TextDecoder().decode(BLOCK_KEY)} is not set`)
@@ -552,18 +497,26 @@ class MockVM {
 
       return retVal
     } catch (error) {
-      if (error.message.includes('Exiting the contract with exit code')) {
+      if (error instanceof ExitSuccess ||
+        error instanceof ExitFailure) {
+        if (error instanceof ExitFailure) {
+          this.db.rollbackTransaction()
+        }
+
+        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.exitArgs)
+        this.db.commitTransaction()
         console.log(error.message)
       } else {
+        this.db.rollbackTransaction()
         console.error(error)
       }
+
       throw error
     }
   }
 
   getImports () {
     return {
-      // eslint-disable-next-line camelcase
       invoke_system_call: (sid, ret_ptr, ret_len, arg_ptr, arg_len) => {
         return this.invokeSystemCall(sid, ret_ptr, ret_len, arg_ptr, arg_len)
       }
