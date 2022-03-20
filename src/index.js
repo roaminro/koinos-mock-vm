@@ -19,6 +19,7 @@ const {
   ENTRY_POINT_KEY,
   CONTRACT_ARGUMENTS_KEY,
   CONTRACT_RESULT_KEY,
+  CALL_CONTRACT_RESULTS_KEY,
   CONTRACT_ID_KEY,
   HEAD_INFO_KEY,
   CALLER_KEY,
@@ -36,7 +37,7 @@ const {
 } = require('./constants')
 
 class MockVM {
-  init () {
+  constructor () {
     const koinosProto = new protobuf.Root()
     koinosProto.resolvePath = (origin, target) => {
       if (target === 'google/protobuf/descriptor.proto') {
@@ -116,6 +117,9 @@ class MockVM {
     this.setContractResultArgs = koinosProto.lookupType('koinos.chain.set_contract_result_arguments')
 
     this.exitContractArgs = koinosProto.lookupType('koinos.chain.exit_contract_arguments')
+
+    this.callContractArgs = koinosProto.lookupType('koinos.chain.call_contract_arguments')
+    this.callContractRes = koinosProto.lookupType('koinos.chain.call_contract_result')
 
     this.db = new Database(koinosProto)
   }
@@ -487,6 +491,25 @@ class MockVM {
           const value = getNestedFieldValue(this.block, this.listType, field, block)
 
           const buffer = this.getBlockFiledRes.encode({ value }).finish()
+          buffer.copy(retBuf)
+          retVal = buffer.byteLength
+          break
+        }
+        case 'call_contract': {
+          // const { contract_id, entry_point, args } = this.callContractArgs.decode(argsBuf)
+          const dbObject = this.db.getObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY)
+
+          if (!dbObject) {
+            throw new Error(`${new TextDecoder().decode(CALL_CONTRACT_RESULTS_KEY)} is not set`)
+          }
+
+          const callContractResults = this.listType.decode(dbObject.value)
+
+          const value = callContractResults.values.shift()
+
+          this.db.putObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY, this.listType.encode(callContractResults).finish())
+
+          const buffer = this.callContractRes.encode({ value: value.bytes_value }).finish()
           buffer.copy(retBuf)
           retVal = buffer.byteLength
           break
