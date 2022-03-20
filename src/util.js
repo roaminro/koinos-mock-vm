@@ -2,30 +2,18 @@ const multibase = require('multibase')
 const secp = require('@noble/secp256k1')
 const { ripemd160 } = require('@noble/hashes/ripemd160')
 const crypto = require('crypto')
-/**
- * Encodes an Uint8Array in base58
- */
+
+// see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function encodeBase58 (buffer) {
   return new TextDecoder().decode(multibase.encode('z', buffer)).slice(1)
 }
 
-/**
- * Decodes a buffer formatted in base58
- */
+// see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function decodeBase58 (bs58) {
   return multibase.decode(`z${bs58}`)
 }
 
-function hashSHA256 (obj) {
-  const digest = crypto.createHash('sha256').update(obj).digest()
-
-  return new Uint8Array([18, 32, ...digest])
-}
-
-function hashRIPEMD160 (obj) {
-  return new Uint8Array([18, 20, ...ripemd160(obj)])
-}
-
+// see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function toUint8Array (hex) {
   const pairs = hex.match(/[\dA-F]{2}/gi)
   if (!pairs) throw new Error('Invalid hex')
@@ -34,12 +22,14 @@ function toUint8Array (hex) {
   )
 }
 
+// see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function toHexString (buffer) {
   return Array.from(buffer)
     .map((n) => `0${Number(n).toString(16)}`.slice(-2))
     .join('')
 }
 
+// see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function bitcoinEncode (
   buffer, // : Uint8Array,
   type, // : "public" | "private",
@@ -79,23 +69,24 @@ function bitcoinEncode (
   return encodeBase58(bufferCheck)
 }
 
+// see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function bitcoinAddress (publicKey) {
   const hash = crypto.createHash('sha256').update(publicKey).digest()
   const hash160 = ripemd160(hash)
   return bitcoinEncode(hash160, 'public')
 }
 
-/**
- * Decodes a buffer formatted in base64
- */
+// see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function decodeBase64 (bs64) {
   return multibase.decode(`M${bs64}`)
 }
 
+// see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function encodeBase64 (buffer) {
   return new TextDecoder().decode(multibase.encode('M', buffer)).slice(1)
 }
 
+// see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function recoverPublicKey (
   digest,
   signature
@@ -118,8 +109,119 @@ function recoverPublicKey (
   return secp.Point.fromHex(publicKey).toRawBytes(true)
 }
 
+function hashSHA256 (obj) {
+  const digest = crypto.createHash('sha256').update(obj).digest()
+
+  return new Uint8Array([18, 32, ...digest])
+}
+
+function hashRIPEMD160 (obj) {
+  return new Uint8Array([18, 20, ...ripemd160(obj)])
+}
+
 function arraysAreEqual (first, second) {
   return first.length === second.length && first.every((value, index) => value === second[index])
+}
+
+function getValueType (fieldType, message) {
+  const valueType = {}
+
+  switch (fieldType.type) {
+    case 'double':
+      valueType.double_value = message
+      break
+    case 'float':
+      valueType.float_value = message
+      break
+    case 'int32':
+      valueType.int32_value = message
+      break
+    case 'uint32':
+      valueType.uint32_value = message
+      break
+    case 'sint32':
+      valueType.sint32_value = message
+      break
+    case 'fixed32':
+      valueType.fixed32_value = message
+      break
+    case 'sfixed32':
+      valueType.sfixed32_value = message
+      break
+    case 'int64':
+      valueType.int64_value = message
+      break
+    case 'uint64':
+      valueType.uint64_value = message
+      break
+    case 'sint64':
+      valueType.sint64_value = message
+      break
+    case 'fixed64':
+      valueType.fixed64_value = message
+      break
+    case 'sfixed64':
+      valueType.sfixed64_value = message
+      break
+    case 'string':
+      valueType.string_value = message
+      break
+    case 'bool':
+      valueType.bool_value = message
+      break
+    case 'bytes':
+      valueType.bytes_value = message
+      break
+    default:
+      // message
+      valueType.message_value = fieldType.resolvedType.encode(message).finish()
+      break
+  }
+
+  return valueType
+}
+
+function getNestedFieldValue (parentDescriptor, listTypeDescriptor, field, parentMessage) {
+  const fieldPath = field.split('.')
+
+  let fieldDescriptor = parentDescriptor
+  let fieldType = null
+  let message = parentMessage
+  for (let index = 0; index < fieldPath.length; index++) {
+    const segment = fieldPath[index]
+
+    if (fieldDescriptor.fields[segment]) {
+      fieldType = fieldDescriptor.fields[segment]
+      message = message[segment]
+
+      if (fieldDescriptor.fields[segment].resolvedType) {
+        fieldDescriptor = fieldDescriptor.fields[segment].resolvedType
+      } else {
+        break
+      }
+    } else {
+      throw new Error(`unable to find field ${segment}`)
+    }
+  }
+
+  if (fieldType && message) {
+    if (fieldType.repeated === true) {
+      const values = []
+      for (let index = 0; index < message.length; index++) {
+        const element = message[index]
+        values.push(getValueType(fieldType, element))
+      }
+      return {
+        message_value: {
+          value: listTypeDescriptor.encode({ values }).finish()
+        }
+      }
+    } else {
+      return getValueType(fieldType, message)
+    }
+  }
+
+  return null
 }
 
 module.exports = {
@@ -132,5 +234,6 @@ module.exports = {
   hashRIPEMD160,
   bitcoinAddress,
   recoverPublicKey,
-  arraysAreEqual
+  arraysAreEqual,
+  getNestedFieldValue
 }

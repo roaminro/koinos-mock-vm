@@ -3,18 +3,40 @@ const { arraysAreEqual } = require('./util')
 
 class Database {
   constructor (koinosProto) {
-    this.db = new SoMap([], (a, b) => {
-      if (a > b) {
-        return 1
-      } else if (a < b) {
-        return -1
-      } else {
-        return 0
-      }
-    })
+    this.initDb()
 
     this.database_key = koinosProto.lookupType('koinos.chain.database_key')
     this.database_object = koinosProto.lookupType('koinos.chain.database_object')
+  }
+
+  initDb (arr = []) {
+    this.db = new SoMap(arr, this.comparator)
+  }
+
+  comparator (a, b) {
+    if (a > b) {
+      return 1
+    } else if (a < b) {
+      return -1
+    } else {
+      return 0
+    }
+  }
+
+  beginTransaction () {
+    this.backupDb = new SoMap(this.db)
+  }
+
+  commitTransaction () {
+    if (this.backupDb) {
+      this.backupDb.clear()
+      this.backupDb = null
+    }
+  }
+
+  rollbackTransaction () {
+    this.initDb(this.backupDb)
+    this.commitTransaction()
   }
 
   putObject (space, key, obj) {
@@ -70,8 +92,8 @@ class Database {
           const decodedNextKey = this.database_key.decode(nextKey)
 
           if (decodedNextKey.space.system === space.system &&
-              decodedNextKey.space.id === space.id &&
-              arraysAreEqual(decodedNextKey.space.zone, space.zone)) {
+            decodedNextKey.space.id === space.id &&
+            arraysAreEqual(decodedNextKey.space.zone, space.zone)) {
             return this.database_object.create({ exists: true, value: nextVal, key: nextKey })
           }
         }
@@ -100,8 +122,8 @@ class Database {
           const decNextKey = this.database_key.decode(nextKey)
 
           if (decNextKey.space.system === space.system &&
-              decNextKey.space.id === space.id &&
-              arraysAreEqual(decNextKey.space.zone, space.zone)) {
+            decNextKey.space.id === space.id &&
+            arraysAreEqual(decNextKey.space.zone, space.zone)) {
             return this.database_object.create({ exists: true, value: nextVal, key: nextKey })
           }
         }
