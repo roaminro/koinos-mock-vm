@@ -534,7 +534,31 @@ class MockVM {
       if (error instanceof ExitSuccess ||
         error instanceof ExitFailure) {
         if (error instanceof ExitFailure) {
+          // revert database changes
+          // backup logs and events
+          const logsBytes = this.db.getObject(METADATA_SPACE, LOGS_KEY)
+          const eventsBytes = this.db.getObject(METADATA_SPACE, EVENTS_KEY)
+
+          let logs
+          if (logsBytes) {
+            logs = this.listType.decode(logsBytes.value)
+          }
+
+          let events
+          if (eventsBytes) {
+            events = this.listType.decode(eventsBytes.value)
+          }
+
           this.db.rollbackTransaction()
+
+          // restore log and events
+          if (logsBytes) {
+            this.db.putObject(METADATA_SPACE, LOGS_KEY, this.listType.encode(logs).finish())
+          }
+
+          if (eventsBytes) {
+            this.db.putObject(METADATA_SPACE, EVENTS_KEY, this.listType.encode(events).finish())
+          }
         }
 
         this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.exitArgs)
