@@ -93,6 +93,10 @@ metadataSpace.system = true;
 metadataSpace.id = 0;
 
 System.putBytes(metadataSpace, 'contract_id', Base58.decode('1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe'));
+
+const contractId = System.getContractId();
+System.log('contractId: ' + Base58.encode(contractId));
+// will print contractId: 1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe
 ```
 
 ## Usage as a CLI
