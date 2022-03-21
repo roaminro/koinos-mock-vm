@@ -86,7 +86,16 @@ The following keys are additional commands that allow you to interact with the m
     - whatever object as argument
     - will clear the backup made via `begin_transaction` (hence make it impossible to rollback)
 
-## Usage as a cli
+Example for setting the contract id in an AssemblyScript Koinos smart contract:
+```js
+const metadataSpace = new chain.object_space();
+metadataSpace.system = true;
+metadataSpace.id = 0;
+
+System.putBytes(metadataSpace, 'contract_id', Base58.decode('1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe'));
+```
+
+## Usage as a CLI
 You can execute multiple smart contracts in one run, they will be executed in the order they appear in the command parameters. The koinos-mock-vm database will be shared between each execution allowing you to build complex executions cases that involve several contracts.
 
 ```sh
@@ -96,44 +105,15 @@ koinos-mock-vm <path to contract wasm 1> <path to contract wasm 2> ... <path to 
 ## Usage as a NodeJS package
 See `index.js` file in the `bin` folder.
 
-## Example
+## CLI Example
 ```sh
 koinos-mock-vm contract.wasm
 
 [Starting VM] 1 contracts to execute
-(node:79763) ExperimentalWarning: WASI is an experimental feature. This feature could change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
 [Execution started] contract.wasm
 [Log] entryPoint: 3282800625
 [Log] contract_arguments: myArgs
 [Log] contract_id: 1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe
-[Log] headInfo.head_block_time: 123456789
-[Log] headInfo.last_irreversible_block: 3
-[Log] headInfo.head_topology.height: 10
-[Log] headInfo.head_topology.id: IHhJwlD7P+o6x7L38den1MnumUhnYmNhTZhIUQQhezvEMf7rx89NbIIioNCIQSk1PQYdQ9mOI4+rDYiwO2pLvM4=
-[Log] headInfo.head_topology.previous: IHhJwlD7P+o6x7L38den1MnumUhnYmNhTZhIUQQhezvEMf7rx89NbIIioNCIQSk1PQYdQ9mOI4+rDYiwO2pLvM4=
-[Log] callerData.caller_privilege: 1
-[Log] callerData.caller (b58): 1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe
-[Log] lastIrreversibleBlock: 987654321
-[Log] recoveredKey (b58): 1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe
-[Log] tx.id: TX_ID
-[Log] tx.id: TX_ID
-[Log] header.payer: 1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe
-[Log] signatures: 10,7,130,1,4,115,105,103,49,10,7,130,1,4,115,105,103,50
-[Log] block.id: BLOCK_ID
-[Log] block.id: BLOCK_ID
-[Log] got: val2
-[Log] got next:val3
-[Log] got prev:val1
-[Log] nothing prev test_key1
-[Log] got test_key4
-[Log] test_key4 was removed
-[Log] nothing after test_key3
-[Log] got next:val11
-[Event] my_event_name / [ '1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe' ] / bXlfZXZlbnRfZGF0YQ==
-[Event] my_event_name2 / [ '1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPqe' ] / bXlfZXZlbnRfZGF0YQ==
-[Log] callRes1: 1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPq1
-[Log] callRes2: 1DQzuCcTKacbs9GGScRTU1Hc8BsyARTPq4
-[Execution completed] in 165.232577ms contract.wasm
+[Execution completed] in 16.232577ms contract.wasm
 [Stopping VM] exit code 0
 ```
