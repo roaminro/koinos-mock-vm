@@ -3,12 +3,14 @@ const protobuf = require('protobufjs')
 const chalk = require('chalk')
 const path = require('path')
 const { Database } = require('./database')
-const { ExitSuccess, ExitFailure, ExitUnknown } = require('./errors')
+const { ExitSuccess, ExitFailure, ExitUnknown, ExecutionError } = require('./errors')
 const {
+  UInt8ArrayToString,
   recoverPublicKey,
   arraysAreEqual,
   getNestedFieldValue,
   encodeBase58,
+  encodeBase64,
   hashSHA1,
   hashSHA256,
   hashSHA512,
@@ -173,7 +175,7 @@ class MockVM {
         case 'event': {
           const { name, impacted, data } = this.eventArgs.decode(argsBuf)
           if (!this.disableLogging) {
-            console.log(chalk.green('[Event]'), name, '/', impacted.map((acc) => encodeBase58(acc)), '/', data.toString())
+            console.log(chalk.green('[Event]'), name, '/', impacted.map((acc) => encodeBase58(acc)), '/', encodeBase64(data))
           }
 
           const eventsBytes = this.db.getObject(METADATA_SPACE, EVENTS_KEY)
@@ -192,7 +194,9 @@ class MockVM {
         }
         case 'set_contract_result': {
           const { value } = this.setContractResultArgs.decode(argsBuf)
-
+          if (!this.disableLogging) {
+            console.log(chalk.green('[Contract Result]'), encodeBase64(value))
+          }
           this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
           break
         }
@@ -200,7 +204,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, ENTRY_POINT_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(ENTRY_POINT_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(ENTRY_POINT_KEY)} is not set`)
           }
 
           const { int32_value } = this.valueType.decode(dbObject.value)
@@ -214,7 +218,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, LAST_IRREVERSIBLE_BLOCK_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(LAST_IRREVERSIBLE_BLOCK_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(LAST_IRREVERSIBLE_BLOCK_KEY)} is not set`)
           }
 
           const { uint64_value } = this.valueType.decode(dbObject.value)
@@ -228,7 +232,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, CONTRACT_ARGUMENTS_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(CONTRACT_ARGUMENTS_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(CONTRACT_ARGUMENTS_KEY)} is not set`)
           }
 
           const buffer = this.getContractArgumentsRes.encode({ value: dbObject.value }).finish()
@@ -240,7 +244,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, CONTRACT_ID_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(CONTRACT_ID_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(CONTRACT_ID_KEY)} is not set`)
           }
 
           const buffer = this.getContractIdRes.encode({ value: dbObject.value }).finish()
@@ -252,7 +256,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, HEAD_INFO_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(HEAD_INFO_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(HEAD_INFO_KEY)} is not set`)
           }
 
           const headInfo = this.headInfo.decode(dbObject.value)
@@ -266,7 +270,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, CALLER_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(CALLER_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(CALLER_KEY)} is not set`)
           }
 
           const callerData = this.callerData.decode(dbObject.value)
@@ -282,7 +286,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, AUTHORITY_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(AUTHORITY_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(AUTHORITY_KEY)} is not set`)
           }
 
           const { values } = this.listType.decode(dbObject.value)
@@ -300,7 +304,7 @@ class MockVM {
           }
 
           if (!authorized) {
-            throw new Error(`account ${encodeBase58(account)} has not authorized action`)
+            throw new ExecutionError(`account ${encodeBase58(account)} has not authorized action`)
           }
 
           break
@@ -405,7 +409,7 @@ class MockVM {
               digest = hashRIPEMD160(obj)
               break
             default:
-              throw new Error('unknown hash code')
+              throw new ExecutionError('unknown hash code')
           }
 
           const buffer = this.hashRes.encode({ value: digest }).finish()
@@ -417,7 +421,7 @@ class MockVM {
           const { type, signature, digest } = this.recoverPublicKeyArgs.decode(argsBuf)
 
           if (this.dsa.valuesById[type] !== 'ecdsa_secp256k1') {
-            throw new Error('unexpected dsa')
+            throw new ExecutionError('unexpected dsa')
           }
 
           const recoveredKey = recoverPublicKey(digest, signature)
@@ -431,7 +435,7 @@ class MockVM {
           const { public_key, type, signature, digest } = this.verifySignatureArgs.decode(argsBuf)
 
           if (this.dsa.valuesById[type] !== 'ecdsa_secp256k1') {
-            throw new Error('unexpected dsa')
+            throw new ExecutionError('unexpected dsa')
           }
 
           const recoveredKey = recoverPublicKey(digest, signature)
@@ -445,7 +449,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, TRANSACTION_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(TRANSACTION_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(TRANSACTION_KEY)} is not set`)
           }
 
           const transaction = this.transaction.decode(dbObject.value)
@@ -461,7 +465,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, TRANSACTION_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(TRANSACTION_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(TRANSACTION_KEY)} is not set`)
           }
 
           const transaction = this.transaction.decode(dbObject.value)
@@ -476,7 +480,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, BLOCK_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(BLOCK_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(BLOCK_KEY)} is not set`)
           }
 
           const block = this.block.decode(dbObject.value)
@@ -491,7 +495,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, BLOCK_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(BLOCK_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(BLOCK_KEY)} is not set`)
           }
 
           const block = this.block.decode(dbObject.value)
@@ -507,7 +511,7 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY)
 
           if (!dbObject) {
-            throw new Error(`${new TextDecoder().decode(CALL_CONTRACT_RESULTS_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(CALL_CONTRACT_RESULTS_KEY)} is not set`)
           }
 
           const callContractResults = this.listType.decode(dbObject.value)
@@ -540,7 +544,12 @@ class MockVM {
         }
       } else {
         this.db.rollbackTransaction()
-        console.error(error)
+
+        if (error instanceof ExecutionError) {
+          console.log(chalk.red('[Error]', error))
+        } else {
+          console.error(error)
+        }
       }
 
       throw error

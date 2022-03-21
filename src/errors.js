@@ -19,8 +19,13 @@ class ExitUnknown extends Error {
   }
 }
 
+class ExecutionError extends Error {
+
+}
+
 module.exports = {
   ExitSuccess,
   ExitFailure,
-  ExitUnknown
+  ExitUnknown,
+  ExecutionError
 }

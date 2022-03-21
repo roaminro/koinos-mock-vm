@@ -5,7 +5,7 @@ const { spawn } = require('child_process')
 const nodeVersion = process.version.match(/^v(\d+)\./)[1]
 
 const args = [
-  require.resolve('../lib/index'),
+  require.resolve('./index'),
   ...process.argv.slice(2)
 ]
 

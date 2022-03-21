@@ -7,6 +7,10 @@ const { sha512 } = require('@noble/hashes/sha512')
 const { keccak_256 } = require('@noble/hashes/sha3')
 const crypto = require('crypto')
 
+function UInt8ArrayToString (array) {
+  return new TextDecoder().decode(array)
+}
+
 // see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function encodeBase58 (buffer) {
   return new TextDecoder().decode(multibase.encode('z', buffer)).slice(1)
@@ -247,6 +251,7 @@ function getNestedFieldValue (parentDescriptor, listTypeDescriptor, field, paren
 }
 
 module.exports = {
+  UInt8ArrayToString,
   toUint8Array,
   encodeBase58,
   decodeBase58,
