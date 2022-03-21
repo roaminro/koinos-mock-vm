@@ -1,1 +1,1 @@
-# koinos-as-mock-vm
+# koinos-mock-vm
