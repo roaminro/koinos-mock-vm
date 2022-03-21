@@ -1,5 +1,6 @@
 /* eslint-disable camelcase */
 const protobuf = require('protobufjs')
+const chalk = require('chalk')
 const path = require('path')
 const { Database } = require('./database')
 const { ExitSuccess, ExitFailure, ExitUnknown } = require('./errors')
@@ -126,8 +127,8 @@ class MockVM {
     this.db = new Database(koinosProto)
   }
 
-  setInstance (_instance) {
-    this.memory = _instance.exports.memory
+  setInstance (instance) {
+    this.memory = instance.exports.memory
   }
 
   invokeSystemCall (sid, ret_ptr, ret_len, arg_ptr, arg_len) {
@@ -152,7 +153,7 @@ class MockVM {
         case 'log': {
           const { message } = this.logArgs.decode(argsBuf)
           if (!this.disableLogging) {
-            console.log('Log:', message)
+            console.log(chalk.green('[Log]'), message)
           }
 
           const logsBytes = this.db.getObject(METADATA_SPACE, LOGS_KEY)
@@ -172,7 +173,7 @@ class MockVM {
         case 'event': {
           const { name, impacted, data } = this.eventArgs.decode(argsBuf)
           if (!this.disableLogging) {
-            console.log('Event:', name, '/', impacted.map((acc) => encodeBase58(acc)), '/', data.toString())
+            console.log(chalk.green('[Event]'), name, '/', impacted.map((acc) => encodeBase58(acc)), '/', data.toString())
           }
 
           const eventsBytes = this.db.getObject(METADATA_SPACE, EVENTS_KEY)
@@ -535,7 +536,7 @@ class MockVM {
         this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.exitArgs)
         this.db.commitTransaction()
         if (!this.disableLogging) {
-          console.log(error.message)
+          console.log(chalk.yellow('[Contract Exit]'), error.message)
         }
       } else {
         this.db.rollbackTransaction()
