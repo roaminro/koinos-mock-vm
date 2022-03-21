@@ -1,5 +1,6 @@
 const fs = require('fs')
 const { WASI } = require('wasi')
+const chalk = require('chalk')
 const { MockVM } = require('../src')
 const { ExitSuccess, ExitFailure, ExecutionError } = require('../src/errors')
 
@@ -9,8 +10,12 @@ if (!wasmFilePaths.length) {
   throw new Error('you must provide the path of one or more wasm files to execute')
 }
 
+console.log(chalk.green('[Starting VM]', `${wasmFilePaths.length} contracts to execute`))
+
 const main = async () => {
   const mockVM = new MockVM()
+
+  let globalExitCode = 0
 
   for (let index = 0; index < wasmFilePaths.length; index++) {
     const wasmFilePath = wasmFilePaths[index]
@@ -34,6 +39,8 @@ const main = async () => {
 
     mockVM.setInstance(instance)
 
+    console.log(chalk.green('[Execution started]', wasmFilePath))
+
     try {
       wasi.start(instance)
     } catch (error) {
@@ -42,8 +49,21 @@ const main = async () => {
         !(error instanceof ExecutionError)) {
         console.error(error)
       }
+
+      if (globalExitCode === 0 && !(error instanceof ExitSuccess)) {
+        globalExitCode = 1
+      }
     }
+
+    console.log(chalk.green('[Execution completed]', wasmFilePath))
   }
+
+  if (globalExitCode === 0) {
+    console.log(chalk.green('[Stopping VM]', `exit code ${globalExitCode}`))
+  } else {
+    console.log(chalk.red('[Stopping VM]', `exit code ${globalExitCode}`))
+  }
+  process.exit(globalExitCode)
 }
 
 main()
