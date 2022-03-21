@@ -1,0 +1,27 @@
+language: python
+
+python:
+  - 3.8
+
+jobs:
+  include:
+  - os: linux
+    dist: focal
+    env:
+      - PROTOBUF_VERSION="3.17.3"
+      - GO_VERSION="1.16.6"
+      - PB_EMBEDDED_CPP_VERSION="field-options-hack"
+
+install:
+  - source ci/install.sh
+
+script:
+  - ci/build.sh
+
+after_success:
+  - ci/after_success.sh
+
+notifications:
+  slack:
+    secure: KUBygLJ3P9z9dYvoWr3Kg+82b5Oq7/gtHmwlv3D+kbzQPJzN/CtwRH9fpJCfa1jjr375tSAb9nbOVqerOHH448aQ50x436Co68Ic2GwQLpfiGjC7apALs2hSxM68nR2+tOPgBk6OCb4rm4G/mnO/2BQqNkGHpk5QoBf5Mv61njyflc5aR5LmlujA2t/5KkXw90te+WDJlwwA08psyhyLjFr/KH7LwDRVc4ggOwDPPPzjwQlABQFyO4avE43SjtSCScMx56y7PdPeIZcvLUo/+lJsCGovS7MTCQ+FPpnHMzYa4QZA7RXTsfys9ZI/SYmrhPdgkBxWOjQCUsO93t8jhikh384li2VqTDTvz0fGh+Cw9LkM80fA+nvaoLAHiUGgI325GmWDnqbEdP9eeFKtRM5U/gTZyEMpDmx/qGr1zmbus31FA+YHPSHsaUYZnzWaCRHOXP7ORm0eiWbczs7jNM0L722EcrocACpZTYFQgy91xr3BAgXOohbN5y+4Uix/BdS4wIHaxNh2N4zzW8v40q0G8lV1Dd2CJKUSbJ27Ze1ziYSQLo4gV9qRULuxiGDdtvlp9Btlz4Rc7NlOrl+oJpl0A0HJFUkalgM5PehmvlPkjJCwdeiCXQdiTe5tO9vPYqifwF+l1kcwIDxc4FBFMbVj2K5C1MAOH+ZjxBNSt1A=
+    on_success: never
