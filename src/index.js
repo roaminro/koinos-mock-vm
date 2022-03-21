@@ -37,7 +37,9 @@ const {
 } = require('./constants')
 
 class MockVM {
-  constructor () {
+  constructor (disableLogging = false) {
+    this.disableLogging = disableLogging
+
     const koinosProto = new protobuf.Root()
     koinosProto.resolvePath = (origin, target) => {
       if (target === 'google/protobuf/descriptor.proto') {
@@ -149,7 +151,9 @@ class MockVM {
         }
         case 'log': {
           const { message } = this.logArgs.decode(argsBuf)
-          console.log('Log:', message)
+          if (!this.disableLogging) {
+            console.log('Log:', message)
+          }
 
           const logsBytes = this.db.getObject(METADATA_SPACE, LOGS_KEY)
 
@@ -167,7 +171,9 @@ class MockVM {
         }
         case 'event': {
           const { name, impacted, data } = this.eventArgs.decode(argsBuf)
-          console.log('Event:', name, '/', impacted.map((acc) => encodeBase58(acc)), '/', data.toString())
+          if (!this.disableLogging) {
+            console.log('Event:', name, '/', impacted.map((acc) => encodeBase58(acc)), '/', data.toString())
+          }
 
           const eventsBytes = this.db.getObject(METADATA_SPACE, EVENTS_KEY)
 
@@ -528,7 +534,9 @@ class MockVM {
 
         this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.exitArgs)
         this.db.commitTransaction()
-        console.log(error.message)
+        if (!this.disableLogging) {
+          console.log(error.message)
+        }
       } else {
         this.db.rollbackTransaction()
         console.error(error)
