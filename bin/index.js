@@ -10,9 +10,8 @@ if (!wasmFilePaths.length) {
   throw new Error('you must provide the path of one or more wasm files to execute')
 }
 
-console.log(chalk.green('[Starting VM]', `${wasmFilePaths.length} contracts to execute`))
-
 const main = async () => {
+  console.log(chalk.green('[Starting VM]', `${wasmFilePaths.length} contracts to execute`))
   const mockVM = new MockVM()
 
   let globalExitCode = 0
@@ -41,6 +40,8 @@ const main = async () => {
 
     console.log(chalk.green('[Execution started]', wasmFilePath))
 
+    const hrStart = process.hrtime()
+
     try {
       wasi.start(instance)
     } catch (error) {
@@ -55,13 +56,17 @@ const main = async () => {
       }
     }
 
-    console.log(chalk.green('[Execution completed]', wasmFilePath))
+    const hrEnd = process.hrtime(hrStart)
+
+    const executionTime = hrEnd[0] ? `in ${hrEnd[0]}s ${hrEnd[1] / 1000000}ms` : `in ${hrEnd[1] / 1000000}ms`
+    console.log(chalk.green('[Execution completed]', executionTime, wasmFilePath))
   }
 
+  const exitMessage = `[Stopping VM] exit code ${globalExitCode}`
   if (globalExitCode === 0) {
-    console.log(chalk.green('[Stopping VM]', `exit code ${globalExitCode}`))
+    console.log(chalk.green(exitMessage))
   } else {
-    console.log(chalk.red('[Stopping VM]', `exit code ${globalExitCode}`))
+    console.log(chalk.red(exitMessage))
   }
   process.exit(globalExitCode)
 }
