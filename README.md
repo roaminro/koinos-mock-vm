@@ -3,7 +3,7 @@
 Koinos-Mock-VM is a NodeJS application/package that allows you to run WASM Koinos smart contracts without deploying the contracts to the Koinos blockchain. It is a tool that you can leverage to build unit tests for your smart contracts.
 
 ## Requirements:
-You need to install NodeJS v12 or higher [download](https://nodejs.org/en/download/)
+You need to install NodeJS v16 or higher [download](https://nodejs.org/en/download/)
 
 ## Installation:
 

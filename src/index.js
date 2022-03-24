@@ -507,7 +507,7 @@ class MockVM {
           break
         }
         case 'call_contract': {
-          // const { contract_id, entry_point, args } = this.callContractArgs.decode(argsBuf)
+          const { contract_id, entry_point, args } = this.callContractArgs.decode(argsBuf)
           const dbObject = this.db.getObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY)
 
           if (!dbObject) {
@@ -517,6 +517,10 @@ class MockVM {
           const callContractResults = this.listType.decode(dbObject.value)
 
           const value = callContractResults.values.shift()
+
+          if (!value) {
+            throw new ExecutionError(`You did not set a call contract result for the call: contract ${encodeBase58(contract_id)} / entry point: ${entry_point} / args: ${encodeBase64(args)}`)
+          }
 
           this.db.putObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY, this.listType.encode(callContractResults).finish())
 
