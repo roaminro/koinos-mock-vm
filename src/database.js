@@ -31,6 +31,8 @@ class Database {
     if (this.backupDb) {
       this.backupDb.clear()
       this.backupDb = null
+    } else {
+      throw new Error('you must call begin_transaction in order to be able to commit')
     }
   }
 
@@ -94,7 +96,7 @@ class Database {
           if (decodedNextKey.space.system === space.system &&
             decodedNextKey.space.id === space.id &&
             arraysAreEqual(decodedNextKey.space.zone, space.zone)) {
-            return this.database_object.create({ exists: true, value: nextVal, key: nextKey })
+            return this.database_object.create({ exists: true, value: nextVal, key: decodedNextKey.key })
           }
         }
       }
@@ -116,15 +118,15 @@ class Database {
 
       if (arraysAreEqual(currKey, dbKey)) {
         if ((i - 1) >= 0) {
-          const nextKey = keys[i - 1]
-          const nextVal = this.db.get(nextKey)
+          const prevKey = keys[i - 1]
+          const prevVal = this.db.get(prevKey)
 
-          const decNextKey = this.database_key.decode(nextKey)
+          const decodedPrevKey = this.database_key.decode(prevKey)
 
-          if (decNextKey.space.system === space.system &&
-            decNextKey.space.id === space.id &&
-            arraysAreEqual(decNextKey.space.zone, space.zone)) {
-            return this.database_object.create({ exists: true, value: nextVal, key: nextKey })
+          if (decodedPrevKey.space.system === space.system &&
+            decodedPrevKey.space.id === space.id &&
+            arraysAreEqual(decodedPrevKey.space.zone, space.zone)) {
+            return this.database_object.create({ exists: true, value: prevVal, key: decodedPrevKey.key })
           }
         }
       }
