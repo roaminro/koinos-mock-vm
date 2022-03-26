@@ -31,8 +31,6 @@ class Database {
     if (this.backupDb) {
       this.backupDb.clear()
       this.backupDb = null
-    } else {
-      throw new Error('you must call begin_transaction in order to be able to commit')
     }
   }
 
