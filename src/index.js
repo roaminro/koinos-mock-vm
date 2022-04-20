@@ -34,7 +34,6 @@ const {
   LOGS_KEY,
   EVENTS_KEY,
   EXIT_CODE_KEY,
-  BEGIN_TRANSACTION_KEY,
   ROLLBACK_TRANSACTION_KEY,
   COMMIT_TRANSACTION_KEY
 } = require('./constants')
@@ -314,10 +313,6 @@ class MockVM {
 
           if (space.system === METADATA_SPACE.system &&
             space.id === METADATA_SPACE.id &&
-            arraysAreEqual(key, BEGIN_TRANSACTION_KEY)) {
-            this.db.beginTransaction()
-          } else if (space.system === METADATA_SPACE.system &&
-            space.id === METADATA_SPACE.id &&
             arraysAreEqual(key, COMMIT_TRANSACTION_KEY)) {
             this.db.commitTransaction()
           } else if (space.system === METADATA_SPACE.system &&
@@ -539,30 +534,30 @@ class MockVM {
         error instanceof ExitFailure) {
         if (error instanceof ExitFailure) {
           // revert database changes
-          // backup logs and events
-          const logsBytes = this.db.getObject(METADATA_SPACE, LOGS_KEY)
-          const eventsBytes = this.db.getObject(METADATA_SPACE, EVENTS_KEY)
+          // backup metadata space
+          const keys = [
+            LOGS_KEY,
+            EVENTS_KEY,
+            CONTRACT_RESULT_KEY,
+            HEAD_INFO_KEY,
+            LAST_IRREVERSIBLE_BLOCK_KEY,
+            CALLER_KEY,
+            TRANSACTION_KEY,
+            BLOCK_KEY,
+            AUTHORITY_KEY,
+            CALL_CONTRACT_RESULTS_KEY,
+          ];
 
-          let logs
-          if (logsBytes) {
-            logs = this.listType.decode(logsBytes.value)
-          }
+          const bytes = keys.map((key) => {
+            return this.db.getObject(METADATA_SPACE, key);
+          });
 
-          let events
-          if (eventsBytes) {
-            events = this.listType.decode(eventsBytes.value)
-          }
+          this.db.rollbackTransaction();
 
-          this.db.rollbackTransaction()
-
-          // restore log and events
-          if (logsBytes) {
-            this.db.putObject(METADATA_SPACE, LOGS_KEY, this.listType.encode(logs).finish())
-          }
-
-          if (eventsBytes) {
-            this.db.putObject(METADATA_SPACE, EVENTS_KEY, this.listType.encode(events).finish())
-          }
+          // restore state of metadata space
+          keys.forEach((key, i) => {
+            if (bytes[i]) this.db.putObject(METADATA_SPACE, key, bytes[i].value);
+          });
         }
 
         this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.exitArgs)

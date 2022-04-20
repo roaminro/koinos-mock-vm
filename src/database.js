@@ -11,6 +11,7 @@ class Database {
 
   initDb (arr = []) {
     this.db = new SoMap(arr, this.comparator)
+    this.commitTransaction();
   }
 
   comparator (a, b) {
@@ -23,15 +24,8 @@ class Database {
     }
   }
 
-  beginTransaction () {
-    this.backupDb = new SoMap(this.db)
-  }
-
   commitTransaction () {
-    if (this.backupDb) {
-      this.backupDb.clear()
-      this.backupDb = null
-    }
+    this.backupDb = new SoMap(this.db)
   }
 
   rollbackTransaction () {

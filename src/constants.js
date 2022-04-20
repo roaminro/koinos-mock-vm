@@ -18,7 +18,6 @@ const RESET_KEY = new TextEncoder('utf-8').encode('reset')
 const LOGS_KEY = new TextEncoder('utf-8').encode('logs')
 const EVENTS_KEY = new TextEncoder('utf-8').encode('events')
 const EXIT_CODE_KEY = new TextEncoder('utf-8').encode('exit_code')
-const BEGIN_TRANSACTION_KEY = new TextEncoder('utf-8').encode('begin_transaction')
 const ROLLBACK_TRANSACTION_KEY = new TextEncoder('utf-8').encode('rollback_transaction')
 const COMMIT_TRANSACTION_KEY = new TextEncoder('utf-8').encode('commit_transaction')
 
@@ -39,7 +38,6 @@ module.exports = {
   LOGS_KEY,
   EVENTS_KEY,
   EXIT_CODE_KEY,
-  BEGIN_TRANSACTION_KEY,
   ROLLBACK_TRANSACTION_KEY,
   COMMIT_TRANSACTION_KEY
 }
