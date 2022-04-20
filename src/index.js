@@ -545,19 +545,19 @@ class MockVM {
             TRANSACTION_KEY,
             BLOCK_KEY,
             AUTHORITY_KEY,
-            CALL_CONTRACT_RESULTS_KEY,
-          ];
+            CALL_CONTRACT_RESULTS_KEY
+          ]
 
           const bytes = keys.map((key) => {
-            return this.db.getObject(METADATA_SPACE, key);
-          });
+            return this.db.getObject(METADATA_SPACE, key)
+          })
 
-          this.db.rollbackTransaction();
+          this.db.rollbackTransaction()
 
           // restore state of metadata space
           keys.forEach((key, i) => {
-            if (bytes[i]) this.db.putObject(METADATA_SPACE, key, bytes[i].value);
-          });
+            if (bytes[i]) this.db.putObject(METADATA_SPACE, key, bytes[i].value)
+          })
         }
 
         this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.exitArgs)

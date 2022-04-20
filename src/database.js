@@ -11,7 +11,7 @@ class Database {
 
   initDb (arr = []) {
     this.db = new SoMap(arr, this.comparator)
-    this.commitTransaction();
+    this.commitTransaction()
   }
 
   comparator (a, b) {
