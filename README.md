@@ -75,16 +75,12 @@ The following keys are additional commands that allow you to interact with the m
  - `reset`:
     - whatever object as argument
     - will reset the database   
- - `begin_transaction`:
-    - whatever object as argument
-    - will start a database transaction (useful when trying to build unit tests around transaction reversions)
-    - it basically backs up the database so that ic can be rolledback to the backedup state if the transaction reverts
  - `rollback_transaction`:
     - whatever object as argument
-    - will restore the backup made via `begin_transaction`
+    - will restore the backup made in the previous `commit_transaction`
  - `commit_transaction`:
     - whatever object as argument
-    - will clear the backup made via `begin_transaction` (hence make it impossible to rollback)
+    - will save a backup of the actual state of the database (useful when trying to build unit tests around transaction reversions)
 
 Example for setting the contract id in an AssemblyScript Koinos smart contract:
 ```js
