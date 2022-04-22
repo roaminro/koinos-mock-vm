@@ -419,7 +419,12 @@ class MockVM {
             throw new ExecutionError('unexpected dsa')
           }
 
-          const recoveredKey = recoverPublicKey(digest, signature)
+          let recoveredKey
+          try {
+            recoveredKey = recoverPublicKey(digest, signature)
+          } catch (error) {
+            throw new ExecutionError(error.message)
+          }
 
           const buffer = this.recoverPublicKeyRes.encode({ value: recoveredKey }).finish()
           buffer.copy(retBuf)
@@ -433,7 +438,12 @@ class MockVM {
             throw new ExecutionError('unexpected dsa')
           }
 
-          const recoveredKey = recoverPublicKey(digest, signature)
+          let recoveredKey
+          try {
+            recoveredKey = recoverPublicKey(digest, signature)
+          } catch (error) {
+            throw new ExecutionError(error.message)
+          }
 
           const buffer = this.verifySignatureRes.encode({ value: arraysAreEqual(public_key, recoveredKey) }).finish()
           buffer.copy(retBuf)
