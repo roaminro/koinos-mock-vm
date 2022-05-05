@@ -1,7 +1,6 @@
 /* eslint-disable camelcase */
 const protobuf = require('protobufjs')
 const chalk = require('chalk')
-const path = require('path')
 const { Database } = require('./database')
 const { ExitSuccess, ExitFailure, ExitUnknown, ExecutionError } = require('./errors')
 const {
@@ -38,30 +37,13 @@ const {
   COMMIT_TRANSACTION_KEY
 } = require('./constants')
 
+const koinosjson = require('@roaminroe/koinos-proto-protobufjs/index.json')
+
 class MockVM {
   constructor (disableLogging = false) {
     this.disableLogging = disableLogging
 
-    const koinosProto = new protobuf.Root()
-    koinosProto.resolvePath = (origin, target) => {
-      if (target === 'google/protobuf/descriptor.proto') {
-        return path.join(__dirname, '/google/protobuf/descriptor.proto')
-      }
-
-      if (target === 'google/protobuf/any.proto') {
-        return path.join(__dirname, '/google/protobuf/any.proto')
-      }
-
-      return path.join(__dirname, '/koinos-proto/', target)
-    }
-
-    koinosProto.loadSync([
-      'koinos/chain/chain.proto',
-      'koinos/chain/system_calls.proto',
-      'koinos/chain/system_call_ids.proto',
-      'koinos/chain/value.proto',
-      'koinos/protocol/protocol.proto'
-    ], { keepCase: true })
+    const koinosProto = protobuf.Root.fromJSON(koinosjson)
 
     this.any = koinosProto.lookupType('google.protobuf.Any')
     this.valueType = koinosProto.lookupType('koinos.chain.value_type')
