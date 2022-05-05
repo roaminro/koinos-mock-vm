@@ -7,6 +7,8 @@ const { sha512 } = require('@noble/hashes/sha512')
 const { keccak_256 } = require('@noble/hashes/sha3')
 const crypto = require('crypto')
 
+const { koinos } = require('test-proto-js')
+
 function UInt8ArrayToString (array) {
   return new TextDecoder().decode(array)
 }
@@ -210,41 +212,20 @@ function getValueType (fieldType, message) {
 function getNestedFieldValue (parentDescriptor, listTypeDescriptor, field, parentMessage) {
   const fieldPath = field.split('.')
 
-  let fieldDescriptor = parentDescriptor
-  let fieldType = null
   let message = parentMessage
   for (let index = 0; index < fieldPath.length; index++) {
     const segment = fieldPath[index]
-
-    if (fieldDescriptor.fields[segment]) {
-      fieldType = fieldDescriptor.fields[segment]
+    console.log('message', message)
+    if (message[segment]) {
       message = message[segment]
-
-      if (fieldDescriptor.fields[segment].resolvedType) {
-        fieldDescriptor = fieldDescriptor.fields[segment].resolvedType
-      } else {
-        break
-      }
     } else {
       throw new Error(`unable to find field ${segment}`)
     }
   }
 
-  if (fieldType && message) {
-    if (fieldType.repeated === true) {
-      const values = []
-      for (let index = 0; index < message.length; index++) {
-        const element = message[index]
-        values.push(getValueType(fieldType, element))
-      }
-      return {
-        message_value: {
-          value: listTypeDescriptor.encode({ values }).finish()
-        }
-      }
-    } else {
-      return getValueType(fieldType, message)
-    }
+  console.log(message)
+  if (message) {
+    return message
   }
 
   return null
