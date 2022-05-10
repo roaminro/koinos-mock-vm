@@ -382,7 +382,7 @@ class MockVM {
         //////////////////////////////////////////////////
 
         case koinos.chain.system_call_id.call: {
-          const { contract_id, entry_point, args } = koinos.chain.call_contract_arguments.decode(argsBuf)
+          const { contract_id, entry_point, args } = koinos.chain.call_arguments.decode(argsBuf)
           const dbObject = this.db.getObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY)
 
           if (!dbObject) {
@@ -399,14 +399,14 @@ class MockVM {
 
           this.db.putObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY, koinos.chain.list_type.encode(callContractResults).finish())
 
-          const buffer = koinos.chain.call_contract_result.encode({ value: value.bytes_value }).finish()
+          const buffer = koinos.chain.call_result.encode({ value: value.bytes_value }).finish()
           buffer.copy(retBuf)
           retBytes[0] = buffer.byteLength
           break
         }
 
         case koinos.chain.system_call_id.exit: {
-          const { exit_code } = koinos.chain.exit_contract_arguments.decode(argsBuf)
+          const { exit_code } = koinos.chain.exit_arguments.decode(argsBuf)
 
           switch (exit_code) {
             case 0:
@@ -435,7 +435,7 @@ class MockVM {
 
           const { int32_value } = koinos.chain.value_type.decode(dbObject.value)
 
-          const buffer = koinos.chain.get_contract_arguments_result.encode({ value: { entry_point: int32_value, arguments: args } }).finish()
+          const buffer = koinos.chain.get_arguments_result.encode({ value: { entry_point: int32_value, arguments: args } }).finish()
           buffer.copy(retBuf)
           retBytes[0] = buffer.byteLength
           break
