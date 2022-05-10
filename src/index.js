@@ -407,13 +407,13 @@ class MockVM {
         case koinos.chain.system_call_id.exit: {
           const exit_args = koinos.chain.exit_arguments.decode(argsBuf)
           let exit_code = 0
-          let message = ""
+          let value = ""
 
           if ( exit_args.retval ) {
             exit_code = exit_args.retval.code
 
             if ( exit_args.retval.value )
-            message = exit_args.retval.value
+            value = exit_args.retval.value
           }
 
           if (exit_code == 0 )
@@ -426,9 +426,9 @@ class MockVM {
             throw new ExitSuccess("")
           }
           if (exit_code > 0)
-            throw new ExitReversion(message, exit_code)
+            throw new ExitReversion(value, exit_code)
           if (exit_code < 0)
-            throw new ExitFailure(message, exit_code)
+            throw new ExitFailure(value, exit_code)
         }
 
         case koinos.chain.system_call_id.get_arguments: {
@@ -549,7 +549,10 @@ class MockVM {
           })
         }
 
-        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.code)
+        const exitCodeObj = new koinos.chain.value_type()
+        exitCodeObj.int32_value = error.code
+
+        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
         this.db.commitTransaction()
         if (!this.disableLogging) {
           console.log(chalk.yellow('[Contract Exit]'), error.message)
