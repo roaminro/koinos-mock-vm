@@ -407,12 +407,16 @@ class MockVM {
 
         case koinos.chain.system_call_id.exit: {
           const exit_args = koinos.chain.exit_arguments.decode(argsBuf)
+          let exit_code = 0
 
-          if (exit_args.retval.code == 0 )
+          if ( exit_args.retval != null )
+            exit_code = exit_args.retval.code
+
+          if (exit_code == 0 )
             throw new ExitSuccess(`Exiting the contract with exit code ${exit_code}`)
-          if (exit_args.retval.code > 0)
+          if (exit_code > 0)
             throw new ExitReversion(`Exiting the contract with exit code ${exit_code}`)
-          if (exit_args.retval.code < 0)
+          if (exit_code < 0)
             throw new ExitFailure(`Exiting the contract with exit code ${exit_code}`)
         }
 
