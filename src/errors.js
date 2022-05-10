@@ -1,28 +1,21 @@
 class ExitSuccess extends Error {
-  constructor (message, exitArgs) {
+  constructor (message) {
     super(message)
-    this.exitArgs = exitArgs
+    this.code = 0
   }
 }
 
 class ExitFailure extends Error {
-  constructor (message, exitArgs) {
+  constructor (message, code = -1) {
     super(message)
-    this.exitArgs = exitArgs
+    this.code = code
   }
 }
 
 class ExitReversion extends Error {
-  constructor (message, exitArgs) {
+  constructor (message, code = 1) {
     super(message)
-    this.exitArgs = exitArgs
-  }
-}
-
-class ExitUnknown extends Error {
-  constructor (message, exitArgs) {
-    super(message)
-    this.exitArgs = exitArgs
+    this.code = code
   }
 }
 
@@ -34,6 +27,5 @@ module.exports = {
   ExitSuccess,
   ExitFailure,
   ExitReversion,
-  ExitUnknown,
   ExecutionError
 }

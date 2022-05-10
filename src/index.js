@@ -62,14 +62,13 @@ class MockVM {
     this.memory = instance.exports.memory
   }
 
-  invokeSystemCall (sid, ret_ptr, ret_len, arg_ptr, arg_len, return_bytes) {
+  invokeSystemCall (sid, ret_ptr, ret_len, arg_ptr, arg_len, ret_bytes) {
     try {
       const argsBuf = new Uint8Array(this.memory.buffer, arg_ptr, arg_len)
       const retBuf = new Uint8Array(this.memory.buffer, ret_ptr, ret_len)
-      const retBytes = new Uint32Array(this.memory.buffer, return_bytes, 1 )
-      retBytes[0] = 0
-
+      const retBytes = new Uint32Array(this.memory.buffer, ret_bytes, 1 )
       let retVal = 0
+
       switch (sid) {
         //////////////////////////////////////////////////
         // General Blockchain Management                //
@@ -85,7 +84,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_head_info_result.encode({ value: headInfo }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
 
@@ -97,7 +96,7 @@ class MockVM {
           }
 
           buffer.copy(dbObject.value)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
 
@@ -115,7 +114,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_transaction_result.encode({ value: transaction }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_transaction_field: {
@@ -132,7 +131,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_transaction_field_result.encode({ value }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_block: {
@@ -146,7 +145,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_block_result.encode({ value: block }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_block_field: {
@@ -163,7 +162,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_block_field_result.encode({ value }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_last_irreversible_block: {
@@ -177,7 +176,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_last_irreversible_block_result.encode({ value: uint64_value }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
 
@@ -217,7 +216,7 @@ class MockVM {
           if (dbObject) {
             const buffer = koinos.chain.get_object_result.encode({ value: dbObject }).finish()
             buffer.copy(retBuf)
-            retBytes[0] = buffer.byteLength
+            retVal = buffer.byteLength
           }
           break
         }
@@ -226,7 +225,7 @@ class MockVM {
 
           this.db.removeObject(space, key)
 
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_next_object: {
@@ -237,7 +236,7 @@ class MockVM {
           if (dbObject) {
             const buffer = koinos.chain.get_next_object_result.encode({ value: dbObject }).finish()
             buffer.copy(retBuf)
-            retBytes[0] = buffer.byteLength
+            retVal = buffer.byteLength
           }
           break
         }
@@ -249,7 +248,7 @@ class MockVM {
           if (dbObject) {
             const buffer = koinos.chain.get_prev_object_result.encode({ value: dbObject }).finish()
             buffer.copy(retBuf)
-            retBytes[0] = buffer.byteLength
+            retVal = buffer.byteLength
           }
           break
         }
@@ -335,7 +334,7 @@ class MockVM {
 
           const buffer = koinos.chain.hash_result.encode({ value: digest }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.recover_public_key: {
@@ -354,7 +353,7 @@ class MockVM {
 
           const buffer = koinos.chain.recover_public_key_result.encode({ value: recoveredKey }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.verify_signature: {
@@ -373,7 +372,7 @@ class MockVM {
 
           const buffer = koinos.chain.verify_signature_result.encode({ value: arraysAreEqual(public_key, recoveredKey) }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
 
@@ -401,23 +400,35 @@ class MockVM {
 
           const buffer = koinos.chain.call_result.encode({ value: value.bytes_value }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
 
         case koinos.chain.system_call_id.exit: {
           const exit_args = koinos.chain.exit_arguments.decode(argsBuf)
           let exit_code = 0
+          let message = ""
 
-          if ( exit_args.retval != null )
+          if ( exit_args.retval ) {
             exit_code = exit_args.retval.code
 
+            if ( exit_args.retval.value )
+            message = exit_args.retval.value
+          }
+
           if (exit_code == 0 )
-            throw new ExitSuccess(`Exiting the contract with exit code ${exit_code}`, exit_code)
+          {
+            if (!this.disableLogging) {
+              console.log(chalk.green('[Contract Result]'), encodeBase64(value))
+            }
+            this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
+
+            throw new ExitSuccess("")
+          }
           if (exit_code > 0)
-            throw new ExitReversion(`Exiting the contract with exit code ${exit_code}`, exit_code)
+            throw new ExitReversion(message, exit_code)
           if (exit_code < 0)
-            throw new ExitFailure(`Exiting the contract with exit code ${exit_code}`, exit_code)
+            throw new ExitFailure(message, exit_code)
         }
 
         case koinos.chain.system_call_id.get_arguments: {
@@ -439,7 +450,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_arguments_result.encode({ value: { entry_point: int32_value, arguments: args } }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
 
@@ -452,7 +463,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_contract_id_result.encode({ value: dbObject.value }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
 
@@ -467,7 +478,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_caller_result.encode({ value: callerData }).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.check_authority: {
@@ -495,13 +506,15 @@ class MockVM {
 
           const buffer = koinos.chain.check_authority_result.encode({value: authorized}).finish()
           buffer.copy(retBuf)
-          retBytes[0] = buffer.byteLength
+          retVal = buffer.byteLength
           break
         }
 
         default:
           throw new ExecutionError(`thunk ${sid} is not implemented`)
       }
+
+      retBytes[0] = retVal
 
       return 0
     } catch (error) {
@@ -536,7 +549,7 @@ class MockVM {
           })
         }
 
-        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.exitArgs)
+        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.code)
         this.db.commitTransaction()
         if (!this.disableLogging) {
           console.log(chalk.yellow('[Contract Exit]'), error.message)
@@ -565,8 +578,8 @@ class MockVM {
 
   getImports () {
     return {
-      invoke_system_call: (sid, ret_ptr, ret_len, arg_ptr, arg_len, return_bytes) => {
-        return this.invokeSystemCall(sid, ret_ptr, ret_len, arg_ptr, arg_len, return_bytes)
+      invoke_system_call: (sid, ret_ptr, ret_len, arg_ptr, arg_len, ret_bytes) => {
+        return this.invokeSystemCall(sid, ret_ptr, ret_len, arg_ptr, arg_len, ret_bytes)
       }
     }
   }
