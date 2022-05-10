@@ -2,7 +2,7 @@
 const protobuf = require('protobufjs')
 const chalk = require('chalk')
 const { Database } = require('./database')
-const { ExitSuccess, ExitFailure, ExitUnknown, ExecutionError } = require('./errors')
+const { ExitSuccess, ExitFailure, ExitReversion, ExecutionError } = require('./errors')
 const {
   UInt8ArrayToString,
   recoverPublicKey,

@@ -12,6 +12,13 @@ class ExitFailure extends Error {
   }
 }
 
+class ExitReversion extends Error {
+  constructor (message, exitArgs) {
+    super(message)
+    this.exitArgs = exitArgs
+  }
+}
+
 class ExitUnknown extends Error {
   constructor (message, exitArgs) {
     super(message)
@@ -26,6 +33,7 @@ class ExecutionError extends Error {
 module.exports = {
   ExitSuccess,
   ExitFailure,
+  ExitReversion,
   ExitUnknown,
   ExecutionError
 }
