@@ -551,6 +551,9 @@ class MockVM {
         }
       }
 
+      if (sid == koinos.chain.system_call_id.exit)
+        throw error
+
       if (error instanceof ExitSuccess)
         return 0;
       if (error instanceof ExitReversion)
