@@ -1,5 +1,5 @@
 const { SoMap } = require('somap')
-const { koinos } = require('@roaminroe/koinos-proto-protobufjs')
+const { koinos } = require('koinos-proto-js')
 const { arraysAreEqual } = require('./util')
 
 class Database {

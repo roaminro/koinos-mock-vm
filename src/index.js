@@ -37,8 +37,8 @@ const {
   COMMIT_TRANSACTION_KEY
 } = require('./constants')
 
-const { koinos } = require('@roaminroe/koinos-proto-protobufjs')
-const koinosJson = require('@roaminroe/koinos-proto-protobufjs/index.json')
+const { koinos } = require('koinos-proto-js')
+const koinosJson = require('koinos-proto-js/index.json')
 
 class MockVM {
   constructor (disableLogging = false) {
