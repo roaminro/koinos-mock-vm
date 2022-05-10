@@ -406,16 +406,16 @@ class MockVM {
         }
 
         case koinos.chain.system_call_id.exit: {
-          const { exit_code } = koinos.chain.exit_arguments.decode(argsBuf)
+          const exit_args = koinos.chain.exit_arguments.decode(argsBuf)
 
-          switch (exit_code) {
-            case 0:
-              throw new ExitSuccess(`Exiting the contract with exit code ${exit_code}`, argsBuf)
-            case 1:
-              throw new ExitFailure(`Exiting the contract with exit code ${exit_code}`, argsBuf)
-            default:
-              throw new ExitUnknown('Exiting the contract with unknown exit code', argsBuf)
-          }
+          if
+
+          if (exit_code == 0 )
+            throw new ExitSuccess(`Exiting the contract with exit code ${exit_code}`)
+          if (exit_code > 0)
+            throw new ExitReversion(`Exiting the contract with exit code ${exit_code}`, argsBuf)
+          if (exit_code < 0)
+            throw new ExitFailure(`Exiting the contract with exit code ${exit_code}`, argsBuf)
         }
 
         case koinos.chain.system_call_id.get_arguments: {
@@ -554,8 +554,8 @@ class MockVM {
 
   getImports () {
     return {
-      invoke_system_call: (sid, ret_ptr, ret_len, arg_ptr, arg_len) => {
-        return this.invokeSystemCall(sid, ret_ptr, ret_len, arg_ptr, arg_len)
+      invoke_system_call: (sid, ret_ptr, ret_len, arg_ptr, arg_len, return_bytes) => {
+        return this.invokeSystemCall(sid, ret_ptr, ret_len, arg_ptr, arg_len, return_bytes)
       }
     }
   }
