@@ -506,8 +506,9 @@ class MockVM {
       return 0
     } catch (error) {
       if (error instanceof ExitSuccess ||
-        error instanceof ExitFailure) {
-        if (error instanceof ExitFailure) {
+        error instanceof ExitFailure ||
+        error instanceof ExitReversion) {
+        if (error instanceof ExitReversion) {
           // revert database changes
           // backup metadata space
           const keys = [
@@ -549,6 +550,11 @@ class MockVM {
           console.error(error)
         }
       }
+
+      if (error instanceof ExitScucess)
+        return 0;
+      if (error instanceof ExitReversion)
+        return 1;
 
       return -1;
     }
