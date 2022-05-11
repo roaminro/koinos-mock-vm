@@ -21,6 +21,7 @@ const EXIT_CODE_KEY = new TextEncoder('utf-8').encode('exit_code')
 const ROLLBACK_TRANSACTION_KEY = new TextEncoder('utf-8').encode('rollback_transaction')
 const COMMIT_TRANSACTION_KEY = new TextEncoder('utf-8').encode('commit_transaction')
 const CHAIN_ID_KEY = new TextEncoder('utf-8').encode('chain_id')
+const ERROR_MESSAGE_KEY = new TextEncoder('utf-8').encode('error_message')
 
 module.exports = {
   METADATA_SPACE,
@@ -41,5 +42,6 @@ module.exports = {
   EXIT_CODE_KEY,
   ROLLBACK_TRANSACTION_KEY,
   COMMIT_TRANSACTION_KEY,
-  CHAIN_ID_KEY
+  CHAIN_ID_KEY,
+  ERROR_MESSAGE_KEY
 }

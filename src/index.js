@@ -5,6 +5,7 @@ const { Database } = require('./database')
 const { ExitSuccess, ExitFailure, ExitReversion, ExecutionError } = require('./errors')
 const {
   UInt8ArrayToString,
+  StringToUInt8Array,
   recoverPublicKey,
   arraysAreEqual,
   getNestedFieldValue,
@@ -35,7 +36,8 @@ const {
   EXIT_CODE_KEY,
   ROLLBACK_TRANSACTION_KEY,
   COMMIT_TRANSACTION_KEY,
-  CHAIN_ID_KEY
+  CHAIN_ID_KEY,
+  ERROR_MESSAGE_KEY
 } = require('./constants')
 
 const { koinos } = require('koinos-proto-js')
@@ -407,31 +409,34 @@ class MockVM {
         case koinos.chain.system_call_id.exit: {
           const exit_args = koinos.chain.exit_arguments.decode(argsBuf)
           let exit_code = 0
-          let value = ""
+          let value = null
 
           if ( exit_args.retval ) {
             exit_code = exit_args.retval.code
 
             if ( exit_args.retval.value )
-            {
               value = exit_args.retval.value
-              this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
-            }
-
           }
 
           if (exit_code == 0 )
           {
-            if (!this.disableLogging) {
-              console.log(chalk.green('[Contract Result]'), encodeBase64(value))
+            if (value)
+            {
+              if (!this.disableLogging) {
+                console.log(chalk.green('[Contract Result]'), encodeBase64(value))
+              }
+
+              this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
             }
 
             throw new ExitSuccess("")
           }
+
           if (exit_code > 0)
-            throw new ExitReversion(value, exit_code)
+            throw new ExitReversion(UInt8ArrayToString(value), exit_code)
+
           if (exit_code < 0)
-            throw new ExitFailure(value, exit_code)
+            throw new ExitFailure(UInt8ArrayToString(value), exit_code)
         }
 
         case koinos.chain.system_call_id.get_arguments: {
@@ -524,6 +529,13 @@ class MockVM {
       if (error instanceof ExitSuccess ||
         error instanceof ExitFailure ||
         error instanceof ExitReversion) {
+
+        const exitCodeObj = new koinos.chain.value_type()
+        exitCodeObj.int32_value = error.code
+
+        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
+        this.db.putObject(METADATA_SPACE, ERROR_MESSAGE_KEY, StringToUInt8Array(error.message))
+
         if (error instanceof ExitReversion) {
           // revert database changes
           // backup metadata space
@@ -537,7 +549,9 @@ class MockVM {
             TRANSACTION_KEY,
             BLOCK_KEY,
             AUTHORITY_KEY,
-            CALL_CONTRACT_RESULTS_KEY
+            CALL_CONTRACT_RESULTS_KEY,
+            EXIT_CODE_KEY,
+            ERROR_MESSAGE_KEY
           ]
 
           const bytes = keys.map((key) => {
@@ -552,10 +566,6 @@ class MockVM {
           })
         }
 
-        const exitCodeObj = new koinos.chain.value_type()
-        exitCodeObj.int32_value = error.code
-
-        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
         this.db.commitTransaction()
         if (!this.disableLogging) {
           console.log(chalk.yellow('[Contract Exit]'), error.message)
