@@ -413,7 +413,11 @@ class MockVM {
             exit_code = exit_args.retval.code
 
             if ( exit_args.retval.value )
-            value = exit_args.retval.value
+            {
+              value = exit_args.retval.value
+              this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
+            }
+
           }
 
           if (exit_code == 0 )
@@ -421,7 +425,6 @@ class MockVM {
             if (!this.disableLogging) {
               console.log(chalk.green('[Contract Result]'), encodeBase64(value))
             }
-            this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
 
             throw new ExitSuccess("")
           }
