@@ -94,10 +94,10 @@ class MockVM {
           const dbObject = this.db.getObject(METADATA_SPACE, CHAIN_ID_KEY)
 
           if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(HEAD_INFO_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(CHAIN_ID_KEY)} is not set`)
           }
 
-          const buffer = koinos.chain.get_chain_id_result.encode({ value: dbObject }).finish()
+          const buffer = koinos.chain.get_chain_id_result.encode({ value: dbObject.value }).finish()
           buffer.copy(retBuf)
           retVal = buffer.byteLength
           break
