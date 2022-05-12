@@ -1477,10 +1477,9 @@ just-diff@^5.0.1:
   resolved "https://registry.npmjs.org/just-diff/-/just-diff-5.0.1.tgz"
   integrity sha512-X00TokkRIDotUIf3EV4xUm6ELc/IkqhS/vPSHdWnsM5y0HoNMfEqrazizI7g78lpHvnRSRt/PFfKtRqJCOGIuQ==
 
-koinos-proto-js@^0.0.2:
-  version "0.0.2"
-  resolved "https://registry.yarnpkg.com/koinos-proto-js/-/koinos-proto-js-0.0.2.tgz#3a1c2091ee2bf067a9fb2715048c1e8aff9411ca"
-  integrity sha512-NhJUiHYgS5U7ZjUJ10LtAg8WKx1qo4veMHVycXywE5g/rEXEgC42RimPsQQkHhJjkniHMnzhKqPrZ5u/A0y/kw==
+"koinos-proto-js@https://github.com/koinos/koinos-proto-js#gov-updates":
+  version "0.0.4"
+  resolved "https://github.com/koinos/koinos-proto-js#b3afb7a90031e1e4cfca286654c6578eea6f5c4f"
 
 levn@^0.4.1:
   version "0.4.1"

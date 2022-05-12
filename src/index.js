@@ -331,7 +331,7 @@ class MockVM {
               digest = hashRIPEMD160(obj)
               break
             default:
-              throw new ExecutionError('unknown hash code')
+              throw new ExitFailure('unknown hash code', koinos.protocol.error_code.unknown_hash_code)
           }
 
           const buffer = koinos.chain.hash_result.encode({ value: digest }).finish()
@@ -343,14 +343,14 @@ class MockVM {
           const { type, signature, digest } = koinos.chain.recover_public_key_arguments.decode(argsBuf)
 
           if (type !== koinos.chain.dsa.ecdsa_secp256k1) {
-            throw new ExecutionError('unexpected dsa')
+            throw new ExitFailure('unexpected dsa', koinos.protocol.error_code.invalid_dsa)
           }
 
           let recoveredKey
           try {
             recoveredKey = recoverPublicKey(digest, signature)
           } catch (error) {
-            throw new ExecutionError(error.message)
+            throw new ExitReversion(error.message)
           }
 
           const buffer = koinos.chain.recover_public_key_result.encode({ value: recoveredKey }).finish()
@@ -362,14 +362,14 @@ class MockVM {
           const { public_key, type, signature, digest } = koinos.chain.verify_signature_arguments.decode(argsBuf)
 
           if (type !== koinos.chain.dsa.ecdsa_secp256k1) {
-            throw new ExecutionError('unexpected dsa')
+            throw new ExitFailure('unexpected dsa', koinos.protocol.error_code.invalid_dsa)
           }
 
           let recoveredKey
           try {
             recoveredKey = recoverPublicKey(digest, signature)
           } catch (error) {
-            throw new ExecutionError(error.message)
+            throw new ExitReversion(error.message)
           }
 
           const buffer = koinos.chain.verify_signature_result.encode({ value: arraysAreEqual(public_key, recoveredKey) }).finish()
@@ -519,7 +519,7 @@ class MockVM {
         }
 
         default:
-          throw new ExecutionError(`thunk ${sid} is not implemented`)
+          throw new ExitReversion(`thunk ${sid} is not implemented`, koinos.protocol.error_code.thunk_not_found)
       }
 
       retBytes[0] = retVal
