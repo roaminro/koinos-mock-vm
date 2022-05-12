@@ -228,7 +228,6 @@ class MockVM {
 
           this.db.removeObject(space, key)
 
-          retVal = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_next_object: {
