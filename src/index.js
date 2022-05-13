@@ -35,7 +35,9 @@ const {
   EVENTS_KEY,
   ROLLBACK_TRANSACTION_KEY,
   COMMIT_TRANSACTION_KEY,
-  CHAIN_ID_KEY
+  CHAIN_ID_KEY,
+  EXIT_CODE_KEY,
+  ERROR_MESSAGE_KEY
 } = require('./constants')
 
 const { koinos } = require('koinos-proto-js')
@@ -523,6 +525,13 @@ class MockVM {
           const msgBytes = StringToUInt8Array(error.message)
           msgBytes.copy(retBuf)
           retBytes = msgBytes.byteLength
+
+          // Still store this metadata for testing purposes
+          const exitCodeObj = new koinos.chain.value_type()
+          exitCodeObj.int32_value = error.code
+
+          this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
+          this.db.putObject(METADATA_SPACE, ERROR_MESSAGE_KEY, StringToUInt8Array(error.message))
         }
 
         if (error.code >= koinos.protocol.error_code.reverted) {
@@ -538,7 +547,9 @@ class MockVM {
             TRANSACTION_KEY,
             BLOCK_KEY,
             AUTHORITY_KEY,
-            CALL_CONTRACT_RESULTS_KEY
+            CALL_CONTRACT_RESULTS_KEY,
+            EXIT_CODE_KEY,
+            ERROR_MESSAGE_KEY
           ]
 
           const bytes = keys.map((key) => {
