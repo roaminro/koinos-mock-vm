@@ -2,7 +2,7 @@
 const protobuf = require('protobufjs')
 const chalk = require('chalk')
 const { Database } = require('./database')
-const { ExitSuccess, ExitFailure, ExitReversion, ExecutionError } = require('./errors')
+const { KoinosError, ExecutionError } = require('./errors')
 const {
   UInt8ArrayToString,
   StringToUInt8Array,
@@ -33,11 +33,9 @@ const {
   RESET_KEY,
   LOGS_KEY,
   EVENTS_KEY,
-  EXIT_CODE_KEY,
   ROLLBACK_TRANSACTION_KEY,
   COMMIT_TRANSACTION_KEY,
-  CHAIN_ID_KEY,
-  ERROR_MESSAGE_KEY
+  CHAIN_ID_KEY
 } = require('./constants')
 
 const { koinos } = require('koinos-proto-js')
@@ -68,7 +66,8 @@ class MockVM {
     try {
       const argsBuf = new Uint8Array(this.memory.buffer, arg_ptr, arg_len)
       const retBuf = new Uint8Array(this.memory.buffer, ret_ptr, ret_len)
-      const retBytes = new Uint32Array(this.memory.buffer, ret_bytes, 1 )
+      const retBytesBuffer = new Uint32Array(this.memory.buffer, ret_bytes, 1 )
+      let retBytes = 0
       let retVal = 0
 
       switch (sid) {
@@ -86,7 +85,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_head_info_result.encode({ value: headInfo }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
 
@@ -99,7 +98,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_chain_id_result.encode({ value: dbObject.value }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
 
@@ -117,7 +116,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_transaction_result.encode({ value: transaction }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_transaction_field: {
@@ -134,7 +133,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_transaction_field_result.encode({ value }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_block: {
@@ -148,7 +147,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_block_result.encode({ value: block }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_block_field: {
@@ -165,7 +164,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_block_field_result.encode({ value }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.get_last_irreversible_block: {
@@ -179,7 +178,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_last_irreversible_block_result.encode({ value: uint64_value }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
 
@@ -219,7 +218,7 @@ class MockVM {
           if (dbObject) {
             const buffer = koinos.chain.get_object_result.encode({ value: dbObject }).finish()
             buffer.copy(retBuf)
-            retVal = buffer.byteLength
+            retBytes = buffer.byteLength
           }
           break
         }
@@ -238,7 +237,7 @@ class MockVM {
           if (dbObject) {
             const buffer = koinos.chain.get_next_object_result.encode({ value: dbObject }).finish()
             buffer.copy(retBuf)
-            retVal = buffer.byteLength
+            retBytes = buffer.byteLength
           }
           break
         }
@@ -250,7 +249,7 @@ class MockVM {
           if (dbObject) {
             const buffer = koinos.chain.get_prev_object_result.encode({ value: dbObject }).finish()
             buffer.copy(retBuf)
-            retVal = buffer.byteLength
+            retBytes = buffer.byteLength
           }
           break
         }
@@ -331,50 +330,50 @@ class MockVM {
               digest = hashRIPEMD160(obj)
               break
             default:
-              throw new ExitFailure('unknown hash code', koinos.protocol.error_code.unknown_hash_code)
+              throw new KoinosError('unknown hash code', koinos.protocol.error_code.unknown_hash_code)
           }
 
           const buffer = koinos.chain.hash_result.encode({ value: digest }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.recover_public_key: {
           const { type, signature, digest } = koinos.chain.recover_public_key_arguments.decode(argsBuf)
 
           if (type !== koinos.chain.dsa.ecdsa_secp256k1) {
-            throw new ExitFailure('unexpected dsa', koinos.protocol.error_code.invalid_dsa)
+            throw new KoinosError('unexpected dsa', koinos.protocol.error_code.invalid_dsa)
           }
 
           let recoveredKey
           try {
             recoveredKey = recoverPublicKey(digest, signature)
           } catch (error) {
-            throw new ExitReversion(error.message)
+            throw new KoinosError(error.message, koinos.protocol.error_code.reverted)
           }
 
           const buffer = koinos.chain.recover_public_key_result.encode({ value: recoveredKey }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.verify_signature: {
           const { public_key, type, signature, digest } = koinos.chain.verify_signature_arguments.decode(argsBuf)
 
           if (type !== koinos.chain.dsa.ecdsa_secp256k1) {
-            throw new ExitFailure('unexpected dsa', koinos.protocol.error_code.invalid_dsa)
+            throw new KoinosError('unexpected dsa', koinos.protocol.error_code.invalid_dsa)
           }
 
           let recoveredKey
           try {
             recoveredKey = recoverPublicKey(digest, signature)
           } catch (error) {
-            throw new ExitReversion(error.message)
+            throw new KoinosError(error.message, koinos.protocol.error_code.reverted)
           }
 
           const buffer = koinos.chain.verify_signature_result.encode({ value: arraysAreEqual(public_key, recoveredKey) }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
 
@@ -402,7 +401,7 @@ class MockVM {
 
           const buffer = koinos.chain.call_result.encode({ value: value.bytes_value }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
 
@@ -429,14 +428,10 @@ class MockVM {
               this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
             }
 
-            throw new ExitSuccess("")
+            throw new KoinosError("", koinos.protocol.error_code.success)
           }
 
-          if (exit_code > 0)
-            throw new ExitReversion(UInt8ArrayToString(value), exit_code)
-
-          if (exit_code < 0)
-            throw new ExitFailure(UInt8ArrayToString(value), exit_code)
+          throw new KoinosError(UInt8ArrayToString(value), exit_code)
         }
 
         case koinos.chain.system_call_id.get_arguments: {
@@ -458,7 +453,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_arguments_result.encode({ value: { entry_point: int32_value, arguments: args } }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
 
@@ -471,7 +466,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_contract_id_result.encode({ value: dbObject.value }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
 
@@ -486,7 +481,7 @@ class MockVM {
 
           const buffer = koinos.chain.get_caller_result.encode({ value: callerData }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
         case koinos.chain.system_call_id.check_authority: {
@@ -514,29 +509,23 @@ class MockVM {
 
           const buffer = koinos.chain.check_authority_result.encode({value: authorized}).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
 
         default:
-          throw new ExitReversion(`thunk ${sid} is not implemented`, koinos.protocol.error_code.thunk_not_found)
+          throw new KoinosError(`thunk ${sid} is not implemented`, koinos.protocol.error_code.thunk_not_found)
       }
-
-      retBytes[0] = retVal
-
-      return 0
     } catch (error) {
-      if (error instanceof ExitSuccess ||
-        error instanceof ExitFailure ||
-        error instanceof ExitReversion) {
+      if (error instanceof KoinosError) {
 
-        const exitCodeObj = new koinos.chain.value_type()
-        exitCodeObj.int32_value = error.code
+        if (error.code != koinos.protocol.error_code.success) {
+          const msgBytes = StringToUInt8Array(error.message)
+          msgBytes.copy(retBuf)
+          retBytes = msgBytes.byteLength
+        }
 
-        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
-        this.db.putObject(METADATA_SPACE, ERROR_MESSAGE_KEY, StringToUInt8Array(error.message))
-
-        if (error instanceof ExitReversion) {
+        if (error.code >= koinos.protocol.error_code.reverted) {
           // revert database changes
           // backup metadata space
           const keys = [
@@ -549,9 +538,7 @@ class MockVM {
             TRANSACTION_KEY,
             BLOCK_KEY,
             AUTHORITY_KEY,
-            CALL_CONTRACT_RESULTS_KEY,
-            EXIT_CODE_KEY,
-            ERROR_MESSAGE_KEY
+            CALL_CONTRACT_RESULTS_KEY
           ]
 
           const bytes = keys.map((key) => {
@@ -583,8 +570,12 @@ class MockVM {
       if (error.code <= koinos.protocol.error_code.success || sid == koinos.chain.system_call_id.exit)
         throw error
 
-      return error.code;
+      retVal = error.code;
     }
+
+    retBytes[0] = retBytes
+
+    return retVal
   }
 
   getImports () {
