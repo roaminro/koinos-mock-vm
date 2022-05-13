@@ -522,25 +522,19 @@ class MockVM {
     } catch (error) {
       if (error instanceof KoinosError) {
 
-        try
-        {
-          // Still store this metadata for testing purposes
-          const exitCodeObj = new koinos.chain.value_type()
-          exitCodeObj.int32_value = error.code
+        // Still store this metadata for testing purposes
+        const exitCodeObj = new koinos.chain.value_type()
+        exitCodeObj.int32_value = error.code
 
-          this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
+        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
 
-          if (error.code != koinos.protocol.error_code.success) {
-            const msgBytes = StringToUInt8Array(error.message)
-            retBuf.set(msgBytes)
-            retBytes = msgBytes.byteLength
+        if (error.code != koinos.protocol.error_code.success) {
+          const msgBytes = StringToUInt8Array(error.message)
+          retBuf.set(msgBytes)
+          retBytes = msgBytes.byteLength
 
-            this.db.putObject(METADATA_SPACE, ERROR_MESSAGE_KEY, StringToUInt8Array(error.message))
-          }
-        } catch (e) {
-          console.log(e.message)
+          this.db.putObject(METADATA_SPACE, ERROR_MESSAGE_KEY, StringToUInt8Array(error.message))
         }
-
 
         if (error.code >= koinos.protocol.error_code.reverted) {
           // revert database changes
