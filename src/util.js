@@ -11,6 +11,10 @@ function UInt8ArrayToString (array) {
   return new TextDecoder().decode(array)
 }
 
+function StringToUInt8Array (string) {
+  return new TextEncoder().encode(string)
+}
+
 // see https://github.com/joticajulian/koilib/blob/main/src/utils.ts
 function encodeBase58 (buffer) {
   return new TextDecoder().decode(multibase.encode('z', buffer)).slice(1)
@@ -252,6 +256,7 @@ function getNestedFieldValue (parentDescriptor, listTypeDescriptor, field, paren
 
 module.exports = {
   UInt8ArrayToString,
+  StringToUInt8Array,
   toUint8Array,
   encodeBase58,
   decodeBase58,
