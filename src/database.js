@@ -68,7 +68,6 @@ class Database {
   getNextObject (space, key) {
     const dbKey = koinos.chain.database_key.encode({ space, key }).finish()
 
-    const keyExists = this.db.get(dbKey) !== null
     const keys = [...this.db.keys()]
 
     for (let i = 0; i < keys.length; i++) {
@@ -91,9 +90,9 @@ class Database {
             arraysAreEqual(decodedNextKey.space.zone, space.zone)) {
             return koinos.chain.database_object.create({ exists: true, value: nextVal, key: decodedNextKey.key })
           }
-        } else if (!keyExists) {
-          // otherwise, if the key we're looking for doesn't exist,
-          // the current key is considered the next key
+        } else if (currKey > dbKey) {
+          // if the current key is greater than the one we're looking for
+          // then, the current key is considered the next key
           const nextVal = this.db.get(currKey)
           return koinos.chain.database_object.create({ exists: true, value: nextVal, key: decodedCurrKey.key })
         }
@@ -106,7 +105,6 @@ class Database {
   getPrevObject (space, key) {
     const dbKey = koinos.chain.database_key.encode({ space, key }).finish()
 
-    const keyExists = this.db.get(dbKey) !== null
     const keys = [...this.db.keys()]
 
     for (let i = keys.length - 1; i >= 0; i--) {
@@ -129,9 +127,9 @@ class Database {
             arraysAreEqual(decodedPrevKey.space.zone, space.zone)) {
             return koinos.chain.database_object.create({ exists: true, value: prevVal, key: decodedPrevKey.key })
           }
-        } else if (!keyExists) {
-          // otherwise, if the key we're looking for doesn't exist,
-          // the current key is considered the prev key
+        } else if (currKey < dbKey) {
+          // if the current key is lower than the one we're looking for
+          // then, the current key is considered the prev key
           const prevVal = this.db.get(currKey)
           return koinos.chain.database_object.create({ exists: true, value: prevVal, key: decodedCurrKey.key })
         }
