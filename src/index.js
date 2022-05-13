@@ -532,7 +532,7 @@ class MockVM {
 
           if (error.code != koinos.protocol.error_code.success) {
             const msgBytes = StringToUInt8Array(error.message)
-            msgBytes.copy(retBuf)
+            retBuf.set(msgBytes)
             retBytes = msgBytes.byteLength
 
             this.db.putObject(METADATA_SPACE, ERROR_MESSAGE_KEY, StringToUInt8Array(error.message))
