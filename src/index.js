@@ -333,7 +333,7 @@ class MockVM {
               digest = hashRIPEMD160(obj)
               break
             default:
-              throw new KoinosError('unknown hash code', koinos.protocol.error_code.unknown_hash_code)
+              throw new KoinosError('unknown hash code', koinos.chain.error_code.unknown_hash_code)
           }
 
           const buffer = koinos.chain.hash_result.encode({ value: digest }).finish()
@@ -345,14 +345,14 @@ class MockVM {
           const { type, signature, digest } = koinos.chain.recover_public_key_arguments.decode(argsBuf)
 
           if (type !== koinos.chain.dsa.ecdsa_secp256k1) {
-            throw new KoinosError('unexpected dsa', koinos.protocol.error_code.invalid_dsa)
+            throw new KoinosError('unexpected dsa', koinos.chain.error_code.unknown_dsa)
           }
 
           let recoveredKey
           try {
             recoveredKey = recoverPublicKey(digest, signature)
           } catch (error) {
-            throw new KoinosError(error.message, koinos.protocol.error_code.reverted)
+            throw new KoinosError(error.message, koinos.chain.error_code.reversion)
           }
 
           const buffer = koinos.chain.recover_public_key_result.encode({ value: recoveredKey }).finish()
@@ -364,14 +364,14 @@ class MockVM {
           const { public_key, type, signature, digest } = koinos.chain.verify_signature_arguments.decode(argsBuf)
 
           if (type !== koinos.chain.dsa.ecdsa_secp256k1) {
-            throw new KoinosError('unexpected dsa', koinos.protocol.error_code.invalid_dsa)
+            throw new KoinosError('unexpected dsa', koinos.chain.error_code.unknown_dsa)
           }
 
           let recoveredKey
           try {
             recoveredKey = recoverPublicKey(digest, signature)
           } catch (error) {
-            throw new KoinosError(error.message, koinos.protocol.error_code.reverted)
+            throw new KoinosError(error.message, koinos.chain.error_code.reversion)
           }
 
           const buffer = koinos.chain.verify_signature_result.encode({ value: arraysAreEqual(public_key, recoveredKey) }).finish()
