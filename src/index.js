@@ -431,7 +431,7 @@ class MockVM {
               this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
             }
 
-            throw new KoinosError("", koinos.protocol.error_code.success)
+            throw new KoinosError("", koinos.chain.error_code.success)
           }
 
           throw new KoinosError(UInt8ArrayToString(value), exit_code)
@@ -517,7 +517,7 @@ class MockVM {
         }
 
         default:
-          throw new KoinosError(`thunk ${sid} is not implemented`, koinos.protocol.error_code.thunk_not_found)
+          throw new KoinosError(`thunk ${sid} is not implemented`, koinos.chain.error_code.unknown_thunk)
       }
     } catch (error) {
       if (error instanceof KoinosError) {
@@ -528,7 +528,7 @@ class MockVM {
 
         this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
 
-        if (error.code != koinos.protocol.error_code.success) {
+        if (error.code != koinos.chain.error_code.success) {
           const msgBytes = StringToUInt8Array(error.message)
           retBuf.set(msgBytes)
           retBytes = msgBytes.byteLength
@@ -536,7 +536,7 @@ class MockVM {
           this.db.putObject(METADATA_SPACE, ERROR_MESSAGE_KEY, StringToUInt8Array(error.message))
         }
 
-        if (error.code >= koinos.protocol.error_code.reverted) {
+        if (error.code >= koinos.chain.error_code.reversion) {
           // revert database changes
           // backup metadata space
           const keys = [
@@ -580,7 +580,7 @@ class MockVM {
         }
       }
 
-      if (error.code <= koinos.protocol.error_code.success || sid == koinos.chain.system_call_id.exit)
+      if (error.code <= koinos.chain.error_code.success || sid == koinos.chain.system_call_id.exit)
         throw error
 
       retVal = error.code;
