@@ -2,6 +2,13 @@ const { SoMap } = require('somap')
 const { koinos } = require('koinos-proto-js')
 const { arraysAreEqual } = require('./util')
 
+function canonicalizeSpace(space) {
+  return {
+    id: space.id != 0 ? space.id: null,
+    system: space.system ? space.system : null,
+    zone: space.zone && space.zone.length != 0 ? space.zone : null }
+}
+
 class Database {
   constructor () {
     this.initDb()
@@ -32,7 +39,7 @@ class Database {
   }
 
   putObject (space, key, obj) {
-    const dbKey = koinos.chain.database_key.encode({ space, key }).finish()
+    const dbKey = koinos.chain.database_key.encode({ space: canonicalizeSpace(space), key }).finish()
     let bytesUsed = 0
 
     const currentObj = this.db.has(dbKey)
@@ -49,13 +56,13 @@ class Database {
   }
 
   removeObject (space, key) {
-    const dbKey = koinos.chain.database_key.encode({ space, key }).finish()
+    const dbKey = koinos.chain.database_key.encode({ space: canonicalizeSpace(space), key }).finish()
 
     this.db.delete(dbKey)
   }
 
   getObject (space, key) {
-    const dbKey = koinos.chain.database_key.encode({ space, key }).finish()
+    const dbKey = koinos.chain.database_key.encode({ space: canonicalizeSpace(space), key }).finish()
     const value = this.db.get(dbKey)
 
     if (value) {
@@ -66,7 +73,7 @@ class Database {
   }
 
   getNextObject (space, key) {
-    const dbKey = koinos.chain.database_key.encode({ space, key }).finish()
+    const dbKey = koinos.chain.database_key.encode({ space: canonicalizeSpace(space), key }).finish()
     if (!this.db.get(dbKey)) {
       return null
     }
@@ -96,7 +103,7 @@ class Database {
   }
 
   getPrevObject (space, key) {
-    const dbKey = koinos.chain.database_key.encode({ space, key }).finish()
+    const dbKey = koinos.chain.database_key.encode({ space: canonicalizeSpace(space), key }).finish()
     if (!this.db.get(dbKey)) {
       return null
     }

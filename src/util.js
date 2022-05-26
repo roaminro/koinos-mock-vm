@@ -270,5 +270,6 @@ module.exports = {
   bitcoinAddress,
   recoverPublicKey,
   arraysAreEqual,
-  getNestedFieldValue
+  getNestedFieldValue,
+  toHexString
 }

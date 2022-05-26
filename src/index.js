@@ -196,15 +196,15 @@ class MockVM {
           const { space, key, obj } = koinos.chain.put_object_arguments.decode(argsBuf)
 
           if (space.system === METADATA_SPACE.system &&
-            space.id === METADATA_SPACE.id &&
+            ( space.id === METADATA_SPACE.id || space.id === null ) &&
             arraysAreEqual(key, COMMIT_TRANSACTION_KEY)) {
             this.db.commitTransaction()
           } else if (space.system === METADATA_SPACE.system &&
-            space.id === METADATA_SPACE.id &&
+            ( space.id === METADATA_SPACE.id || space.id === null ) &&
             arraysAreEqual(key, ROLLBACK_TRANSACTION_KEY)) {
             this.db.rollbackTransaction()
           } else if (space.system === METADATA_SPACE.system &&
-            space.id === METADATA_SPACE.id &&
+            ( space.id === METADATA_SPACE.id || space.id === null ) &&
             arraysAreEqual(key, RESET_KEY)) {
             this.db.initDb()
           } else {
@@ -504,7 +504,7 @@ class MockVM {
             const authority = values[index]
 
             if (arraysAreEqual(authority.bytes_value, account) &&
-              authority.int32_value === type) {
+              (authority.int32_value === type || (type == 0 && authority.int32_value === null) )) {
               authorized = authority.bool_value
               break
             }
