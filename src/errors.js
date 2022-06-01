@@ -1,21 +1,7 @@
-class ExitSuccess extends Error {
-  constructor (message, exitArgs) {
+class KoinosError extends Error {
+  constructor (message, code) {
     super(message)
-    this.exitArgs = exitArgs
-  }
-}
-
-class ExitFailure extends Error {
-  constructor (message, exitArgs) {
-    super(message)
-    this.exitArgs = exitArgs
-  }
-}
-
-class ExitUnknown extends Error {
-  constructor (message, exitArgs) {
-    super(message)
-    this.exitArgs = exitArgs
+    this.code = code
   }
 }
 
@@ -24,8 +10,6 @@ class ExecutionError extends Error {
 }
 
 module.exports = {
-  ExitSuccess,
-  ExitFailure,
-  ExitUnknown,
+  KoinosError,
   ExecutionError
 }
