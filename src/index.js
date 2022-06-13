@@ -429,12 +429,7 @@ class MockVM {
             throw new KoinosError("", koinos.chain.error_code.success)
           }
 
-          if (exit_args.res && exit_args.res.error && exit_args.res.error.message)
-          {
-            throw new KoinosError(UInt8ArrayToString(exit_args.res.error.message), exit_args.code)
-          }
-
-          throw new KoinosError("", exit_args.code)
+          throw new KoinosError(UInt8ArrayToString(exit_args.res.error.message), exit_args.code)
         }
 
         case koinos.chain.system_call_id.get_arguments: {
