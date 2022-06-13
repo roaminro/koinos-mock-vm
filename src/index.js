@@ -402,7 +402,7 @@ class MockVM {
 
           this.db.putObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY, koinos.chain.list_type.encode(callContractResults).finish())
 
-          const buffer = koinos.chain.call_result.encode({ value: value.bytes_value }).finish()
+          const buffer = koinos.chain.call_result.encode( { value: { object: value.bytes_value } } ).finish()
           buffer.copy(retBuf)
           retBytes = buffer.byteLength
           break
@@ -410,31 +410,31 @@ class MockVM {
 
         case koinos.chain.system_call_id.exit: {
           const exit_args = koinos.chain.exit_arguments.decode(argsBuf)
-          let exit_code = 0
-          let value = null
+          let value = exit_args.res
 
-          if ( exit_args.retval ) {
-            exit_code = exit_args.retval.code
+          if ( exit_args.res )
+            value = exit_args.res
 
-            if ( exit_args.retval.value )
-              value = exit_args.retval.value
-          }
-
-          if (exit_code == 0 )
+          if (exit_args.code == 0 )
           {
-            if (value)
+            if (exit_args.res && exit_args.res.object)
             {
               if (!this.disableLogging) {
-                console.log(chalk.green('[Contract Result]'), encodeBase64(value))
+                console.log(chalk.green('[Contract Result]'), encodeBase64(exit_args.res.object))
               }
 
-              this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
+              this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, exit_args.res.object)
             }
 
             throw new KoinosError("", koinos.chain.error_code.success)
           }
 
-          throw new KoinosError(UInt8ArrayToString(value), exit_code)
+          if (exit_args.res && exit_args.res.error && exit_args.res.error.message)
+          {
+            throw new KoinosError(UInt8ArrayToString(exit_args.res.error.message), exit_args.code)
+          }
+
+          throw new KoinosError("", exit_args.code)
         }
 
         case koinos.chain.system_call_id.get_arguments: {
