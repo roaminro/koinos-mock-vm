@@ -24,7 +24,7 @@
     "@noble/hashes": "^1.0.0",
     "@noble/secp256k1": "^1.5.5",
     "chalk": "4.1.2",
-    "koinos-proto-js": "https://github.com/koinos/koinos-proto-js#master",
+    "koinos-proto-js": "0.0.8",
     "multibase": "^4.0.6",
     "protobufjs": "^6.11.2",
     "somap": "^0.5.14"

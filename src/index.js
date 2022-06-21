@@ -402,7 +402,13 @@ class MockVM {
 
           this.db.putObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY, koinos.chain.list_type.encode(callContractResults).finish())
 
-          const buffer = koinos.chain.call_result.encode( { value: { object: value.bytes_value } } ).finish()
+          const result = koinos.chain.exit_arguments.decode(value.bytes_value)
+
+          if (result.code != 0) {
+            throw new KoinosError(result.res.error.message, result.code)
+          }
+
+          const buffer = koinos.chain.call_result.encode({value: result.res.object}).finish()
           buffer.copy(retBuf)
           retBytes = buffer.byteLength
           break
