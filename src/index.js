@@ -37,7 +37,8 @@ const {
   COMMIT_TRANSACTION_KEY,
   CHAIN_ID_KEY,
   EXIT_CODE_KEY,
-  ERROR_MESSAGE_KEY
+  ERROR_MESSAGE_KEY,
+  VERIFY_VRF_KEY,
 } = require('./constants')
 
 const { koinos } = require('koinos-proto-js')
@@ -375,6 +376,30 @@ class MockVM {
           }
 
           const buffer = koinos.chain.verify_signature_result.encode({ value: arraysAreEqual(public_key, recoveredKey) }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+
+        case koinos.chain.system_call_id.verify_vrf_proof: {
+          koinos.chain.verify_vrf_proof_arguments.decode(argsBuf)
+          const dbObject = this.db.getObject(METADATA_SPACE, VERIFY_VRF_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(VERIFY_VRF_KEY)} is not set`)
+          }
+
+          const verifyVrfResults = koinos.chain.list_type.decode(dbObject.value)
+
+          const value = verifyVrfResults.values.shift()
+
+          if (!value) {
+            throw new ExecutionError(`You did not set a result for verify_vrf_proof`)
+          }
+
+          this.db.putObject(METADATA_SPACE, VERIFY_VRF_KEY, koinos.chain.list_type.encode(verifyVrfResults).finish())
+
+          const buffer = koinos.chain.verify_vrf_proof_result.encode({value: value.bool_value}).finish()
           buffer.copy(retBuf)
           retBytes = buffer.byteLength
           break
