@@ -14,7 +14,7 @@
     "url": "git+https://github.com/koinos/koinos-mock-vm.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Koinos Group <contact@koinos.group>",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/koinos/koinos-mock-vm/issues"
