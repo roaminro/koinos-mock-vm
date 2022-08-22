@@ -1,5 +1,5 @@
 const { SoMap } = require('somap')
-const { koinos } = require('koinos-proto-js')
+const { koinos } = require('@koinos/proto-js')
 const { arraysAreEqual } = require('./util')
 
 function canonicalizeSpace(space) {
