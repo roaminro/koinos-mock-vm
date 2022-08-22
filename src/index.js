@@ -1,11 +1,11 @@
 /* eslint-disable camelcase */
 const protobuf = require('protobufjs')
 const chalk = require('chalk')
-const path = require('path')
 const { Database } = require('./database')
-const { ExitSuccess, ExitFailure, ExitUnknown, ExecutionError } = require('./errors')
+const { KoinosError, ExecutionError } = require('./errors')
 const {
   UInt8ArrayToString,
+  StringToUInt8Array,
   recoverPublicKey,
   arraysAreEqual,
   getNestedFieldValue,
@@ -33,126 +33,236 @@ const {
   RESET_KEY,
   LOGS_KEY,
   EVENTS_KEY,
-  EXIT_CODE_KEY,
   ROLLBACK_TRANSACTION_KEY,
-  COMMIT_TRANSACTION_KEY
+  COMMIT_TRANSACTION_KEY,
+  CHAIN_ID_KEY,
+  EXIT_CODE_KEY,
+  ERROR_MESSAGE_KEY,
+  VERIFY_VRF_KEY,
 } = require('./constants')
+
+const { koinos } = require('koinos-proto-js')
+const koinosJson = require('koinos-proto-js/index.json')
 
 class MockVM {
   constructor (disableLogging = false) {
     this.disableLogging = disableLogging
 
-    const koinosProto = new protobuf.Root()
-    koinosProto.resolvePath = (origin, target) => {
-      if (target === 'google/protobuf/descriptor.proto') {
-        return path.join(__dirname, '/google/protobuf/descriptor.proto')
-      }
+    const koinosProto = protobuf.Root.fromJSON(koinosJson)
 
-      if (target === 'google/protobuf/any.proto') {
-        return path.join(__dirname, '/google/protobuf/any.proto')
-      }
+    this.listTypeProto = koinosProto.lookupType('koinos.chain.list_type')
+    this.blockProto = koinosProto.lookupType('koinos.protocol.block')
+    // force protobufjs to resolve all the types
+    this.blockProto.encode({})
+    this.transactionProto = koinosProto.lookupType('koinos.protocol.transaction')
+    // force protobufjs to resolve all the types
+    this.transactionProto.encode({})
 
-      return path.join(__dirname, '/koinos-proto/', target)
-    }
-
-    koinosProto.loadSync([
-      'koinos/chain/chain.proto',
-      'koinos/chain/system_calls.proto',
-      'koinos/chain/system_call_ids.proto',
-      'koinos/chain/value.proto',
-      'koinos/protocol/protocol.proto'
-    ], { keepCase: true })
-
-    this.any = koinosProto.lookupType('google.protobuf.Any')
-    this.valueType = koinosProto.lookupType('koinos.chain.value_type')
-    this.listType = koinosProto.lookupType('koinos.chain.list_type')
-    this.headInfo = koinosProto.lookupType('koinos.chain.head_info')
-    this.callerData = koinosProto.lookupType('koinos.chain.caller_data')
-    this.systemCallIDs = koinosProto.lookupEnum('koinos.chain.system_call_id')
-    this.dsa = koinosProto.lookupEnum('koinos.chain.dsa')
-    this.transaction = koinosProto.lookupType('koinos.protocol.transaction')
-    this.block = koinosProto.lookupType('koinos.protocol.block')
-
-    this.logArgs = koinosProto.lookupType('koinos.chain.log_arguments')
-
-    this.getEntryPointRes = koinosProto.lookupType('koinos.chain.get_entry_point_result')
-    this.getLastIrreversibleBlock = koinosProto.lookupType('koinos.chain.get_last_irreversible_block_result')
-    this.getContractArgumentsRes = koinosProto.lookupType('koinos.chain.get_contract_arguments_result')
-    this.getContractIdRes = koinosProto.lookupType('koinos.chain.get_contract_id_result')
-    this.getHeadInfoRes = koinosProto.lookupType('koinos.chain.get_head_info_result')
-    this.getCallerRes = koinosProto.lookupType('koinos.chain.get_caller_result')
-    this.requireAuthorityArgs = koinosProto.lookupType('koinos.chain.require_authority_arguments')
-
-    this.putObjectArgs = koinosProto.lookupType('koinos.chain.put_object_arguments')
-    this.putObjectRes = koinosProto.lookupType('koinos.chain.put_object_result')
-
-    this.getObjectArgs = koinosProto.lookupType('koinos.chain.get_object_arguments')
-    this.getObjectRes = koinosProto.lookupType('koinos.chain.get_object_result')
-
-    this.removeObjectArgs = koinosProto.lookupType('koinos.chain.remove_object_arguments')
-
-    this.getNextObjectArgs = koinosProto.lookupType('koinos.chain.get_next_object_arguments')
-    this.getNextObjectRes = koinosProto.lookupType('koinos.chain.get_next_object_result')
-
-    this.getPrevObjectArgs = koinosProto.lookupType('koinos.chain.get_prev_object_arguments')
-    this.getPrevObjectRes = koinosProto.lookupType('koinos.chain.get_prev_object_result')
-
-    this.hashArgs = koinosProto.lookupType('koinos.chain.hash_arguments')
-    this.hashRes = koinosProto.lookupType('koinos.chain.hash_result')
-
-    this.recoverPublicKeyArgs = koinosProto.lookupType('koinos.chain.recover_public_key_arguments')
-    this.recoverPublicKeyRes = koinosProto.lookupType('koinos.chain.recover_public_key_result')
-
-    this.verifySignatureArgs = koinosProto.lookupType('koinos.chain.verify_signature_arguments')
-    this.verifySignatureRes = koinosProto.lookupType('koinos.chain.verify_signature_result')
-
-    this.getTransactionRes = koinosProto.lookupType('koinos.chain.get_transaction_result')
-
-    this.getTransactionFieldArgs = koinosProto.lookupType('koinos.chain.get_transaction_field_arguments')
-    this.getTransactionFieldRes = koinosProto.lookupType('koinos.chain.get_transaction_field_result')
-
-    this.getBlockRes = koinosProto.lookupType('koinos.chain.get_block_result')
-
-    this.getBlockFiledArgs = koinosProto.lookupType('koinos.chain.get_block_field_arguments')
-    this.getBlockFiledRes = koinosProto.lookupType('koinos.chain.get_block_field_result')
-
-    this.eventArgs = koinosProto.lookupType('koinos.chain.event_arguments')
-
-    this.setContractResultArgs = koinosProto.lookupType('koinos.chain.set_contract_result_arguments')
-
-    this.exitContractArgs = koinosProto.lookupType('koinos.chain.exit_contract_arguments')
-
-    this.callContractArgs = koinosProto.lookupType('koinos.chain.call_contract_arguments')
-    this.callContractRes = koinosProto.lookupType('koinos.chain.call_contract_result')
-
-    this.db = new Database(koinosProto)
+    this.db = new Database()
   }
 
   setInstance (instance) {
     this.memory = instance.exports.memory
   }
 
-  invokeSystemCall (sid, ret_ptr, ret_len, arg_ptr, arg_len) {
+  invokeSystemCall (sid, ret_ptr, ret_len, arg_ptr, arg_len, ret_bytes) {
+    const retBytesBuffer = new Uint32Array(this.memory.buffer, ret_bytes, 1 )
+    const retBuf = new Uint8Array(this.memory.buffer, ret_ptr, ret_len)
+    let retBytes = 0
+    let retVal = 0
+
     try {
       const argsBuf = new Uint8Array(this.memory.buffer, arg_ptr, arg_len)
-      const retBuf = new Uint8Array(this.memory.buffer, ret_ptr, ret_len)
 
-      let retVal = 0
-      switch (this.systemCallIDs.valuesById[sid]) {
-        case 'exit_contract': {
-          const { exit_code } = this.exitContractArgs.decode(argsBuf)
+      switch (sid) {
+        //////////////////////////////////////////////////
+        // General Blockchain Management                //
+        //////////////////////////////////////////////////
+        case koinos.chain.system_call_id.get_head_info: {
+          const dbObject = this.db.getObject(METADATA_SPACE, HEAD_INFO_KEY)
 
-          switch (exit_code) {
-            case 0:
-              throw new ExitSuccess(`Exiting the contract with exit code ${exit_code}`, argsBuf)
-            case 1:
-              throw new ExitFailure(`Exiting the contract with exit code ${exit_code}`, argsBuf)
-            default:
-              throw new ExitUnknown('Exiting the contract with unknown exit code', argsBuf)
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(HEAD_INFO_KEY)} is not set`)
           }
+
+          const headInfo = koinos.chain.head_info.decode(dbObject.value)
+
+          const buffer = koinos.chain.get_head_info_result.encode({ value: headInfo }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
         }
-        case 'log': {
-          const { message } = this.logArgs.decode(argsBuf)
+
+        case koinos.chain.system_call_id.get_chain_id: {
+          const dbObject = this.db.getObject(METADATA_SPACE, CHAIN_ID_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(CHAIN_ID_KEY)} is not set`)
+          }
+
+          const buffer = koinos.chain.get_chain_id_result.encode({ value: dbObject.value }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+
+        //////////////////////////////////////////////////
+        // System Helpers                               //
+        //////////////////////////////////////////////////
+        case koinos.chain.system_call_id.get_transaction: {
+          const dbObject = this.db.getObject(METADATA_SPACE, TRANSACTION_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(TRANSACTION_KEY)} is not set`)
+          }
+
+          const transaction = koinos.protocol.transaction.decode(dbObject.value)
+
+          const buffer = koinos.chain.get_transaction_result.encode({ value: transaction }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+        case koinos.chain.system_call_id.get_transaction_field: {
+          const { field } = koinos.chain.get_transaction_field_arguments.decode(argsBuf)
+
+          const dbObject = this.db.getObject(METADATA_SPACE, TRANSACTION_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(TRANSACTION_KEY)} is not set`)
+          }
+
+          const transaction = koinos.protocol.transaction.decode(dbObject.value)
+          const value = getNestedFieldValue(this.transactionProto, this.listTypeProto, field, transaction)
+
+          const buffer = koinos.chain.get_transaction_field_result.encode({ value }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+        case koinos.chain.system_call_id.get_block: {
+          const dbObject = this.db.getObject(METADATA_SPACE, BLOCK_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(BLOCK_KEY)} is not set`)
+          }
+
+          const block = koinos.protocol.block.decode(dbObject.value)
+
+          const buffer = koinos.chain.get_block_result.encode({ value: block }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+        case koinos.chain.system_call_id.get_block_field: {
+          const { field } = koinos.chain.get_block_field_arguments.decode(argsBuf)
+          const dbObject = this.db.getObject(METADATA_SPACE, BLOCK_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(BLOCK_KEY)} is not set`)
+          }
+
+          const block = koinos.protocol.block.decode(dbObject.value)
+
+          const value = getNestedFieldValue(this.blockProto, this.listTypeProto, field, block)
+
+          const buffer = koinos.chain.get_block_field_result.encode({ value }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+        case koinos.chain.system_call_id.get_last_irreversible_block: {
+          const dbObject = this.db.getObject(METADATA_SPACE, LAST_IRREVERSIBLE_BLOCK_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(LAST_IRREVERSIBLE_BLOCK_KEY)} is not set`)
+          }
+
+          const { uint64_value } = koinos.chain.value_type.decode(dbObject.value)
+
+          const buffer = koinos.chain.get_last_irreversible_block_result.encode({ value: uint64_value }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+
+        //////////////////////////////////////////////////
+        // Resource Subsystem                           //
+        //////////////////////////////////////////////////
+
+        //////////////////////////////////////////////////
+        // Database                                     //
+        //////////////////////////////////////////////////
+        case koinos.chain.system_call_id.put_object: {
+          const { space, key, obj } = koinos.chain.put_object_arguments.decode(argsBuf)
+
+          if (space.system === METADATA_SPACE.system &&
+            ( space.id === METADATA_SPACE.id || space.id === null ) &&
+            arraysAreEqual(key, COMMIT_TRANSACTION_KEY)) {
+            this.db.commitTransaction()
+          } else if (space.system === METADATA_SPACE.system &&
+            ( space.id === METADATA_SPACE.id || space.id === null ) &&
+            arraysAreEqual(key, ROLLBACK_TRANSACTION_KEY)) {
+            this.db.rollbackTransaction()
+          } else if (space.system === METADATA_SPACE.system &&
+            ( space.id === METADATA_SPACE.id || space.id === null ) &&
+            arraysAreEqual(key, RESET_KEY)) {
+            this.db.initDb()
+          } else {
+            this.db.putObject(space, key, obj)
+          }
+
+          break
+        }
+        case koinos.chain.system_call_id.get_object: {
+          const { space, key } = koinos.chain.get_object_arguments.decode(argsBuf)
+
+          const dbObject = this.db.getObject(space, key)
+
+          if (dbObject) {
+            const buffer = koinos.chain.get_object_result.encode({ value: dbObject }).finish()
+            buffer.copy(retBuf)
+            retBytes = buffer.byteLength
+          }
+          break
+        }
+        case koinos.chain.system_call_id.remove_object: {
+          const { space, key } = koinos.chain.remove_object_arguments.decode(argsBuf)
+
+          this.db.removeObject(space, key)
+
+          break
+        }
+        case koinos.chain.system_call_id.get_next_object: {
+          const { space, key } = koinos.chain.get_next_object_arguments.decode(argsBuf)
+
+          const dbObject = this.db.getNextObject(space, key)
+
+          if (dbObject) {
+            const buffer = koinos.chain.get_next_object_result.encode({ value: dbObject }).finish()
+            buffer.copy(retBuf)
+            retBytes = buffer.byteLength
+          }
+          break
+        }
+        case koinos.chain.system_call_id.get_prev_object: {
+          const { space, key } = koinos.chain.get_prev_object_arguments.decode(argsBuf)
+
+          const dbObject = this.db.getPrevObject(space, key)
+
+          if (dbObject) {
+            const buffer = koinos.chain.get_prev_object_result.encode({ value: dbObject }).finish()
+            buffer.copy(retBuf)
+            retBytes = buffer.byteLength
+          }
+          break
+        }
+
+        //////////////////////////////////////////////////
+        // Logging                                      //
+        //////////////////////////////////////////////////
+        case koinos.chain.system_call_id.log: {
+          const { message } = koinos.chain.log_arguments.decode(argsBuf)
           if (!this.disableLogging) {
             console.log(chalk.green('[Log]'), message)
           }
@@ -161,18 +271,18 @@ class MockVM {
 
           let logs
           if (logsBytes) {
-            logs = this.listType.decode(logsBytes.value)
+            logs = koinos.chain.list_type.decode(logsBytes.value)
           } else {
-            logs = this.listType.create()
+            logs = koinos.chain.list_type.create()
           }
 
-          logs.values.push(this.valueType.create({ string_value: message }))
+          logs.values.push(koinos.chain.value_type.create({ string_value: message }))
 
-          this.db.putObject(METADATA_SPACE, LOGS_KEY, this.listType.encode(logs).finish())
+          this.db.putObject(METADATA_SPACE, LOGS_KEY, koinos.chain.list_type.encode(logs).finish())
           break
         }
-        case 'event': {
-          const { name, impacted, data } = this.eventArgs.decode(argsBuf)
+        case koinos.chain.system_call_id.event: {
+          const { name, impacted, data } = koinos.chain.event_arguments.decode(argsBuf)
           if (!this.disableLogging) {
             console.log(chalk.green('[Event]'), name, '/', impacted.map((acc) => encodeBase58(acc)), '/', encodeBase64(data))
           }
@@ -181,203 +291,23 @@ class MockVM {
 
           let events
           if (eventsBytes) {
-            events = this.listType.decode(eventsBytes.value)
+            events = koinos.chain.list_type.decode(eventsBytes.value)
           } else {
-            events = this.listType.create()
+            events = koinos.chain.list_type.create()
           }
 
-          events.values.push(this.valueType.create({ bytes_value: argsBuf }))
+          events.values.push(koinos.chain.value_type.create({ bytes_value: argsBuf }))
 
-          this.db.putObject(METADATA_SPACE, EVENTS_KEY, this.listType.encode(events).finish())
+          this.db.putObject(METADATA_SPACE, EVENTS_KEY, koinos.chain.list_type.encode(events).finish())
           break
         }
-        case 'set_contract_result': {
-          const { value } = this.setContractResultArgs.decode(argsBuf)
-          if (!this.disableLogging) {
-            console.log(chalk.green('[Contract Result]'), encodeBase64(value))
-          }
-          this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, value)
-          break
-        }
-        case 'get_entry_point': {
-          const dbObject = this.db.getObject(METADATA_SPACE, ENTRY_POINT_KEY)
 
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(ENTRY_POINT_KEY)} is not set`)
-          }
+        //////////////////////////////////////////////////
+        // Cryptography                                 //
+        //////////////////////////////////////////////////
 
-          const { int32_value } = this.valueType.decode(dbObject.value)
-
-          const buffer = this.getEntryPointRes.encode({ value: int32_value }).finish()
-          buffer.copy(retBuf)
-          retVal = buffer.byteLength
-          break
-        }
-        case 'get_last_irreversible_block': {
-          const dbObject = this.db.getObject(METADATA_SPACE, LAST_IRREVERSIBLE_BLOCK_KEY)
-
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(LAST_IRREVERSIBLE_BLOCK_KEY)} is not set`)
-          }
-
-          const { uint64_value } = this.valueType.decode(dbObject.value)
-
-          const buffer = this.getLastIrreversibleBlock.encode({ value: uint64_value }).finish()
-          buffer.copy(retBuf)
-          retVal = buffer.byteLength
-          break
-        }
-        case 'get_contract_arguments': {
-          const dbObject = this.db.getObject(METADATA_SPACE, CONTRACT_ARGUMENTS_KEY)
-
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(CONTRACT_ARGUMENTS_KEY)} is not set`)
-          }
-
-          const buffer = this.getContractArgumentsRes.encode({ value: dbObject.value }).finish()
-          buffer.copy(retBuf)
-          retVal = buffer.byteLength
-          break
-        }
-        case 'get_contract_id': {
-          const dbObject = this.db.getObject(METADATA_SPACE, CONTRACT_ID_KEY)
-
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(CONTRACT_ID_KEY)} is not set`)
-          }
-
-          const buffer = this.getContractIdRes.encode({ value: dbObject.value }).finish()
-          buffer.copy(retBuf)
-          retVal = buffer.byteLength
-          break
-        }
-        case 'get_head_info': {
-          const dbObject = this.db.getObject(METADATA_SPACE, HEAD_INFO_KEY)
-
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(HEAD_INFO_KEY)} is not set`)
-          }
-
-          const headInfo = this.headInfo.decode(dbObject.value)
-
-          const buffer = this.getHeadInfoRes.encode({ value: headInfo }).finish()
-          buffer.copy(retBuf)
-          retVal = buffer.byteLength
-          break
-        }
-        case 'get_caller': {
-          const dbObject = this.db.getObject(METADATA_SPACE, CALLER_KEY)
-
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(CALLER_KEY)} is not set`)
-          }
-
-          const callerData = this.callerData.decode(dbObject.value)
-
-          const buffer = this.getCallerRes.encode({ value: callerData }).finish()
-          buffer.copy(retBuf)
-          retVal = buffer.byteLength
-          break
-        }
-        case 'require_authority': {
-          const { type, account } = this.requireAuthorityArgs.decode(argsBuf)
-
-          const dbObject = this.db.getObject(METADATA_SPACE, AUTHORITY_KEY)
-
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(AUTHORITY_KEY)} is not set`)
-          }
-
-          const { values } = this.listType.decode(dbObject.value)
-
-          let authorized = false
-
-          for (let index = 0; index < values.length; index++) {
-            const authority = values[index]
-
-            if (arraysAreEqual(authority.bytes_value, account) &&
-              authority.int32_value === type) {
-              authorized = authority.bool_value
-              break
-            }
-          }
-
-          if (!authorized) {
-            throw new ExecutionError(`account ${encodeBase58(account)} has not authorized action`)
-          }
-
-          break
-        }
-        case 'put_object': {
-          const { space, key, obj } = this.putObjectArgs.decode(argsBuf)
-
-          if (space.system === METADATA_SPACE.system &&
-            space.id === METADATA_SPACE.id &&
-            arraysAreEqual(key, COMMIT_TRANSACTION_KEY)) {
-            this.db.commitTransaction()
-          } else if (space.system === METADATA_SPACE.system &&
-            space.id === METADATA_SPACE.id &&
-            arraysAreEqual(key, ROLLBACK_TRANSACTION_KEY)) {
-            this.db.rollbackTransaction()
-          } else if (space.system === METADATA_SPACE.system &&
-            space.id === METADATA_SPACE.id &&
-            arraysAreEqual(key, RESET_KEY)) {
-            this.db.initDb()
-          } else {
-            const bytesUsed = this.db.putObject(space, key, obj)
-
-            const buffer = this.putObjectRes.encode({ value: bytesUsed }).finish()
-            buffer.copy(retBuf)
-            retVal = buffer.byteLength
-          }
-
-          break
-        }
-        case 'get_object': {
-          const { space, key } = this.getObjectArgs.decode(argsBuf)
-
-          const dbObject = this.db.getObject(space, key)
-
-          if (dbObject) {
-            const buffer = this.getObjectRes.encode({ value: dbObject }).finish()
-            buffer.copy(retBuf)
-            retVal = buffer.byteLength
-          }
-          break
-        }
-        case 'remove_object': {
-          const { space, key } = this.removeObjectArgs.decode(argsBuf)
-
-          this.db.removeObject(space, key)
-
-          break
-        }
-        case 'get_next_object': {
-          const { space, key } = this.getNextObjectArgs.decode(argsBuf)
-
-          const dbObject = this.db.getNextObject(space, key)
-
-          if (dbObject) {
-            const buffer = this.getNextObjectRes.encode({ value: dbObject }).finish()
-            buffer.copy(retBuf)
-            retVal = buffer.byteLength
-          }
-          break
-        }
-        case 'get_prev_object': {
-          const { space, key } = this.getPrevObjectArgs.decode(argsBuf)
-
-          const dbObject = this.db.getPrevObject(space, key)
-
-          if (dbObject) {
-            const buffer = this.getPrevObjectRes.encode({ value: dbObject }).finish()
-            buffer.copy(retBuf)
-            retVal = buffer.byteLength
-          }
-          break
-        }
-        case 'hash': {
-          const { code, obj } = this.hashArgs.decode(argsBuf)
+        case koinos.chain.system_call_id.hash: {
+          const { code, obj } = koinos.chain.hash_arguments.decode(argsBuf)
           let digest = null
 
           const hashCode = code.toInt()
@@ -404,122 +334,90 @@ class MockVM {
               digest = hashRIPEMD160(obj)
               break
             default:
-              throw new ExecutionError('unknown hash code')
+              throw new KoinosError('unknown hash code', koinos.chain.error_code.unknown_hash_code)
           }
 
-          const buffer = this.hashRes.encode({ value: digest }).finish()
+          const buffer = koinos.chain.hash_result.encode({ value: digest }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
-        case 'recover_public_key': {
-          const { type, signature, digest } = this.recoverPublicKeyArgs.decode(argsBuf)
+        case koinos.chain.system_call_id.recover_public_key: {
+          const { type, signature, digest } = koinos.chain.recover_public_key_arguments.decode(argsBuf)
 
-          if (this.dsa.valuesById[type] !== 'ecdsa_secp256k1') {
-            throw new ExecutionError('unexpected dsa')
+          if (type !== koinos.chain.dsa.ecdsa_secp256k1) {
+            throw new KoinosError('unexpected dsa', koinos.chain.error_code.unknown_dsa)
           }
 
           let recoveredKey
           try {
             recoveredKey = recoverPublicKey(digest, signature)
           } catch (error) {
-            throw new ExecutionError(error.message)
+            throw new KoinosError(error.message, koinos.chain.error_code.reversion)
           }
 
-          const buffer = this.recoverPublicKeyRes.encode({ value: recoveredKey }).finish()
+          const buffer = koinos.chain.recover_public_key_result.encode({ value: recoveredKey }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
-        case 'verify_signature': {
-          const { public_key, type, signature, digest } = this.verifySignatureArgs.decode(argsBuf)
+        case koinos.chain.system_call_id.verify_signature: {
+          const { public_key, type, signature, digest } = koinos.chain.verify_signature_arguments.decode(argsBuf)
 
-          if (this.dsa.valuesById[type] !== 'ecdsa_secp256k1') {
-            throw new ExecutionError('unexpected dsa')
+          if (type !== koinos.chain.dsa.ecdsa_secp256k1) {
+            throw new KoinosError('unexpected dsa', koinos.chain.error_code.unknown_dsa)
           }
 
           let recoveredKey
           try {
             recoveredKey = recoverPublicKey(digest, signature)
           } catch (error) {
-            throw new ExecutionError(error.message)
+            throw new KoinosError(error.message, koinos.chain.error_code.reversion)
           }
 
-          const buffer = this.verifySignatureRes.encode({ value: arraysAreEqual(public_key, recoveredKey) }).finish()
+          const buffer = koinos.chain.verify_signature_result.encode({ value: arraysAreEqual(public_key, recoveredKey) }).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
-        case 'get_transaction': {
-          const dbObject = this.db.getObject(METADATA_SPACE, TRANSACTION_KEY)
+
+        case koinos.chain.system_call_id.verify_vrf_proof: {
+          koinos.chain.verify_vrf_proof_arguments.decode(argsBuf)
+          const dbObject = this.db.getObject(METADATA_SPACE, VERIFY_VRF_KEY)
 
           if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(TRANSACTION_KEY)} is not set`)
+            throw new ExecutionError(`${UInt8ArrayToString(VERIFY_VRF_KEY)} is not set`)
           }
 
-          const transaction = this.transaction.decode(dbObject.value)
+          const verifyVrfResults = koinos.chain.list_type.decode(dbObject.value)
 
-          const buffer = this.getTransactionRes.encode({ value: transaction }).finish()
-          buffer.copy(retBuf)
-          retVal = buffer.byteLength
-          break
-        }
-        case 'get_transaction_field': {
-          const { field } = this.getTransactionFieldArgs.decode(argsBuf)
+          const value = verifyVrfResults.values.shift()
 
-          const dbObject = this.db.getObject(METADATA_SPACE, TRANSACTION_KEY)
-
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(TRANSACTION_KEY)} is not set`)
+          if (!value) {
+            throw new ExecutionError(`You did not set a result for verify_vrf_proof`)
           }
 
-          const transaction = this.transaction.decode(dbObject.value)
-          const value = getNestedFieldValue(this.transaction, this.listType, field, transaction)
+          this.db.putObject(METADATA_SPACE, VERIFY_VRF_KEY, koinos.chain.list_type.encode(verifyVrfResults).finish())
 
-          const buffer = this.getTransactionFieldRes.encode({ value }).finish()
+          const buffer = koinos.chain.verify_vrf_proof_result.encode({value: value.bool_value}).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
-        case 'get_block': {
-          const dbObject = this.db.getObject(METADATA_SPACE, BLOCK_KEY)
 
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(BLOCK_KEY)} is not set`)
-          }
+        //////////////////////////////////////////////////
+        // Contract Management                          //
+        //////////////////////////////////////////////////
 
-          const block = this.block.decode(dbObject.value)
-
-          const buffer = this.getBlockRes.encode({ value: block }).finish()
-          buffer.copy(retBuf)
-          retVal = buffer.byteLength
-          break
-        }
-        case 'get_block_field': {
-          const { field } = this.getBlockFiledArgs.decode(argsBuf)
-          const dbObject = this.db.getObject(METADATA_SPACE, BLOCK_KEY)
-
-          if (!dbObject) {
-            throw new ExecutionError(`${UInt8ArrayToString(BLOCK_KEY)} is not set`)
-          }
-
-          const block = this.block.decode(dbObject.value)
-          const value = getNestedFieldValue(this.block, this.listType, field, block)
-
-          const buffer = this.getBlockFiledRes.encode({ value }).finish()
-          buffer.copy(retBuf)
-          retVal = buffer.byteLength
-          break
-        }
-        case 'call_contract': {
-          const { contract_id, entry_point, args } = this.callContractArgs.decode(argsBuf)
+        case koinos.chain.system_call_id.call: {
+          const { contract_id, entry_point, args } = koinos.chain.call_arguments.decode(argsBuf)
           const dbObject = this.db.getObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY)
 
           if (!dbObject) {
             throw new ExecutionError(`${UInt8ArrayToString(CALL_CONTRACT_RESULTS_KEY)} is not set`)
           }
 
-          const callContractResults = this.listType.decode(dbObject.value)
+          const callContractResults = koinos.chain.list_type.decode(dbObject.value)
 
           const value = callContractResults.values.shift()
 
@@ -527,22 +425,149 @@ class MockVM {
             throw new ExecutionError(`You did not set a call contract result for the call: contract ${encodeBase58(contract_id)} / entry point: ${entry_point} / args: ${encodeBase64(args)}`)
           }
 
-          this.db.putObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY, this.listType.encode(callContractResults).finish())
+          this.db.putObject(METADATA_SPACE, CALL_CONTRACT_RESULTS_KEY, koinos.chain.list_type.encode(callContractResults).finish())
 
-          const buffer = this.callContractRes.encode({ value: value.bytes_value }).finish()
+          const result = koinos.chain.exit_arguments.decode(value.bytes_value)
+
+          if (result.code != 0) {
+            throw new KoinosError(result.res.error.message, result.code)
+          }
+
+          const buffer = koinos.chain.call_result.encode({value: result.res.object}).finish()
           buffer.copy(retBuf)
-          retVal = buffer.byteLength
+          retBytes = buffer.byteLength
           break
         }
-        default:
-          break
-      }
 
-      return retVal
+        case koinos.chain.system_call_id.exit: {
+          const exit_args = koinos.chain.exit_arguments.decode(argsBuf)
+          let value = exit_args.res
+
+          if ( exit_args.res )
+            value = exit_args.res
+
+          if (exit_args.code == 0 )
+          {
+            if (exit_args.res && exit_args.res.object)
+            {
+              if (!this.disableLogging) {
+                console.log(chalk.green('[Contract Result]'), encodeBase64(exit_args.res.object))
+              }
+
+              this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, exit_args.res.object)
+            }
+
+            throw new KoinosError("", koinos.chain.error_code.success)
+          }
+
+          if (exit_args.res && exit_args.res.error && exit_args.res.error.message)
+          {
+            throw new KoinosError(exit_args.res.error.message, exit_args.code)
+          }
+
+          throw new KoinosError("", exit_args.code)
+        }
+
+        case koinos.chain.system_call_id.get_arguments: {
+          let dbObject = this.db.getObject(METADATA_SPACE, CONTRACT_ARGUMENTS_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(CONTRACT_ARGUMENTS_KEY)} is not set`)
+          }
+
+          const args = dbObject.value
+
+          dbObject = this.db.getObject(METADATA_SPACE, ENTRY_POINT_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(ENTRY_POINT_KEY)} is not set`)
+          }
+
+          const { int32_value } = koinos.chain.value_type.decode(dbObject.value)
+
+          const buffer = koinos.chain.get_arguments_result.encode({ value: { entry_point: int32_value, arguments: args } }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+
+        case koinos.chain.system_call_id.get_contract_id: {
+          const dbObject = this.db.getObject(METADATA_SPACE, CONTRACT_ID_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(CONTRACT_ID_KEY)} is not set`)
+          }
+
+          const buffer = koinos.chain.get_contract_id_result.encode({ value: dbObject.value }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+
+        case koinos.chain.system_call_id.get_caller: {
+          const dbObject = this.db.getObject(METADATA_SPACE, CALLER_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(CALLER_KEY)} is not set`)
+          }
+
+          const callerData = koinos.chain.caller_data.decode(dbObject.value)
+
+          const buffer = koinos.chain.get_caller_result.encode({ value: callerData }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+        case koinos.chain.system_call_id.check_authority: {
+          const { type, account } = koinos.chain.check_authority_arguments.decode(argsBuf)
+
+          const dbObject = this.db.getObject(METADATA_SPACE, AUTHORITY_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(AUTHORITY_KEY)} is not set`)
+          }
+
+          const { values } = koinos.chain.list_type.decode(dbObject.value)
+
+          let authorized = false
+
+          for (let index = 0; index < values.length; index++) {
+            const authority = values[index]
+
+            if (arraysAreEqual(authority.bytes_value, account) &&
+              (authority.int32_value === type || (type == 0 && authority.int32_value === null) )) {
+              authorized = authority.bool_value
+              break
+            }
+          }
+
+          const buffer = koinos.chain.check_authority_result.encode({value: authorized}).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+
+        default:
+          throw new KoinosError(`thunk ${sid} is not implemented`, koinos.chain.error_code.unknown_thunk)
+      }
     } catch (error) {
-      if (error instanceof ExitSuccess ||
-        error instanceof ExitFailure) {
-        if (error instanceof ExitFailure) {
+      if (error instanceof KoinosError) {
+
+        // Still store this metadata for testing purposes
+        const exitCodeObj = new koinos.chain.value_type()
+        exitCodeObj.int32_value = error.code
+
+        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
+
+        if (error.code != koinos.chain.error_code.success) {
+          const msgBytes = StringToUInt8Array(error.message)
+          retBuf.set(msgBytes)
+          retBytes = msgBytes.byteLength
+
+          this.db.putObject(METADATA_SPACE, ERROR_MESSAGE_KEY, StringToUInt8Array(error.message))
+        }
+
+        if (error.code >= koinos.chain.error_code.reversion) {
           // revert database changes
           // backup metadata space
           const keys = [
@@ -555,7 +580,9 @@ class MockVM {
             TRANSACTION_KEY,
             BLOCK_KEY,
             AUTHORITY_KEY,
-            CALL_CONTRACT_RESULTS_KEY
+            CALL_CONTRACT_RESULTS_KEY,
+            EXIT_CODE_KEY,
+            ERROR_MESSAGE_KEY
           ]
 
           const bytes = keys.map((key) => {
@@ -570,7 +597,6 @@ class MockVM {
           })
         }
 
-        this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, error.exitArgs)
         this.db.commitTransaction()
         if (!this.disableLogging) {
           console.log(chalk.yellow('[Contract Exit]'), error.message)
@@ -585,14 +611,21 @@ class MockVM {
         }
       }
 
-      throw error
+      if (error.code <= koinos.chain.error_code.success || sid == koinos.chain.system_call_id.exit)
+        throw error
+
+      retVal = error.code;
     }
+
+    retBytesBuffer[0] = retBytes
+
+    return retVal
   }
 
   getImports () {
     return {
-      invoke_system_call: (sid, ret_ptr, ret_len, arg_ptr, arg_len) => {
-        return this.invokeSystemCall(sid, ret_ptr, ret_len, arg_ptr, arg_len)
+      invoke_system_call: (sid, ret_ptr, ret_len, arg_ptr, arg_len, ret_bytes) => {
+        return this.invokeSystemCall(sid, ret_ptr, ret_len, arg_ptr, arg_len, ret_bytes)
       }
     }
   }
