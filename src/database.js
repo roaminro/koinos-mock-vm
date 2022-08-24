@@ -2,11 +2,12 @@ const { SoMap } = require('somap')
 const { koinos } = require('@koinos/proto-js')
 const { arraysAreEqual } = require('./util')
 
-function canonicalizeSpace(space) {
+function canonicalizeSpace (space) {
   return {
-    id: space.id != 0 ? space.id: null,
+    id: space.id !== 0 ? space.id : null,
     system: space.system ? space.system : null,
-    zone: space.zone && space.zone.length != 0 ? space.zone : null }
+    zone: space.zone && space.zone.length !== 0 ? space.zone : null
+  }
 }
 
 class Database {
