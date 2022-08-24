@@ -62,6 +62,11 @@
   resolved "https://registry.npmjs.org/@isaacs/string-locale-compare/-/string-locale-compare-1.1.0.tgz"
   integrity sha512-SQ7Kzhh9+D+ZW9MA0zkYv3VXhIDNx+LzM6EJ+/65I3QY+enU6Itte7E5XX7EWrqLW2FN4n06GWzBnPoC3th2aQ==
 
+"@koinos/proto-js@^0.4.0":
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/@koinos/proto-js/-/proto-js-0.4.0.tgz#f55c225ff0caf446ba950bf4d8253cb28eb5bd53"
+  integrity sha512-6Xciwa1YrALwat7iRkYiQX/H8zvk/Qamo7iBtwAIZeyZTEEfxSaRrSB2f4pLzk9Ian6O4CmuRxHkr8Cws6FQNw==
+
 "@multiformats/base-x@^4.0.1":
   version "4.0.1"
   resolved "https://registry.npmjs.org/@multiformats/base-x/-/base-x-4.0.1.tgz"
@@ -288,11 +293,6 @@
   version "1.1.0"
   resolved "https://registry.npmjs.org/@protobufjs/utf8/-/utf8-1.1.0.tgz"
   integrity sha1-p3c2C1s5oaLlEG+OhY8v0tBgxXA=
-
-"@roaminroe/koinos-proto-protobufjs@^1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@roaminroe/koinos-proto-protobufjs/-/koinos-proto-protobufjs-1.0.0.tgz#0c4e0cfba81dbeaa6a11b4400f90bf08ea524818"
-  integrity sha512-DvvJmP5BncE62z/5oW/rB4WX9yAlkMABatr2j9TGQ4nrYdVyLoOQPysI6JnT7gC1c2s1AO+2stjvF2U8/wEc0A==
 
 "@tootallnate/once@2":
   version "2.0.0"
@@ -1481,6 +1481,11 @@ just-diff@^5.0.1:
   version "5.0.1"
   resolved "https://registry.npmjs.org/just-diff/-/just-diff-5.0.1.tgz"
   integrity sha512-X00TokkRIDotUIf3EV4xUm6ELc/IkqhS/vPSHdWnsM5y0HoNMfEqrazizI7g78lpHvnRSRt/PFfKtRqJCOGIuQ==
+
+koinos-proto-js@^0.0.25:
+  version "0.0.25"
+  resolved "https://registry.yarnpkg.com/koinos-proto-js/-/koinos-proto-js-0.0.25.tgz#bd2f12922790b24670557464c1ed199aad549ae7"
+  integrity sha512-H0+MzUrf6JpdPUzM+TNL3DNmgMoyqZUWMp7TuT6Okz2hLiBM11Sl4to9s3Sjx6uBQKG8m1GjdW5XYJYbkIilpQ==
 
 levn@^0.4.1:
   version "0.4.1"
