@@ -38,7 +38,8 @@ const {
   CHAIN_ID_KEY,
   EXIT_CODE_KEY,
   ERROR_MESSAGE_KEY,
-  VERIFY_VRF_KEY
+  VERIFY_VRF_KEY,
+  OPERATION_KEY
 } = require('./constants')
 
 const { koinos } = require('@koinos/proto-js')
@@ -136,6 +137,20 @@ class MockVM {
           const value = getNestedFieldValue(this.transactionProto, this.listTypeProto, field, transaction)
 
           const buffer = koinos.chain.get_transaction_field_result.encode({ value }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+        case koinos.chain.system_call_id.get_operation: {
+          const dbObject = this.db.getObject(METADATA_SPACE, OPERATION_KEY)
+
+          if (!dbObject) {
+            throw new ExecutionError(`${UInt8ArrayToString(OPERATION_KEY)} is not set`)
+          }
+
+          const operation = koinos.protocol.operation.decode(dbObject.value)
+
+          const buffer = koinos.chain.get_operation_result.encode({ value: operation }).finish()
           buffer.copy(retBuf)
           retBytes = buffer.byteLength
           break
