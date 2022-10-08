@@ -38,11 +38,11 @@ const {
   CHAIN_ID_KEY,
   EXIT_CODE_KEY,
   ERROR_MESSAGE_KEY,
-  VERIFY_VRF_KEY,
+  VERIFY_VRF_KEY
 } = require('./constants')
 
-const { koinos } = require('koinos-proto-js')
-const koinosJson = require('koinos-proto-js/index.json')
+const { koinos } = require('@koinos/proto-js')
+const koinosJson = require('@koinos/proto-js/index.json')
 
 class MockVM {
   constructor (disableLogging = false) {
@@ -66,7 +66,7 @@ class MockVM {
   }
 
   invokeSystemCall (sid, ret_ptr, ret_len, arg_ptr, arg_len, ret_bytes) {
-    const retBytesBuffer = new Uint32Array(this.memory.buffer, ret_bytes, 1 )
+    const retBytesBuffer = new Uint32Array(this.memory.buffer, ret_bytes, 1)
     const retBuf = new Uint8Array(this.memory.buffer, ret_ptr, ret_len)
     let retBytes = 0
     let retVal = 0
@@ -75,9 +75,9 @@ class MockVM {
       const argsBuf = new Uint8Array(this.memory.buffer, arg_ptr, arg_len)
 
       switch (sid) {
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         // General Blockchain Management                //
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         case koinos.chain.system_call_id.get_head_info: {
           const dbObject = this.db.getObject(METADATA_SPACE, HEAD_INFO_KEY)
 
@@ -106,9 +106,9 @@ class MockVM {
           break
         }
 
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         // System Helpers                               //
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         case koinos.chain.system_call_id.get_transaction: {
           const dbObject = this.db.getObject(METADATA_SPACE, TRANSACTION_KEY)
 
@@ -186,26 +186,26 @@ class MockVM {
           break
         }
 
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         // Resource Subsystem                           //
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
 
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         // Database                                     //
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         case koinos.chain.system_call_id.put_object: {
           const { space, key, obj } = koinos.chain.put_object_arguments.decode(argsBuf)
 
           if (space.system === METADATA_SPACE.system &&
-            ( space.id === METADATA_SPACE.id || space.id === null ) &&
+            (space.id === METADATA_SPACE.id || space.id === null) &&
             arraysAreEqual(key, COMMIT_TRANSACTION_KEY)) {
             this.db.commitTransaction()
           } else if (space.system === METADATA_SPACE.system &&
-            ( space.id === METADATA_SPACE.id || space.id === null ) &&
+            (space.id === METADATA_SPACE.id || space.id === null) &&
             arraysAreEqual(key, ROLLBACK_TRANSACTION_KEY)) {
             this.db.rollbackTransaction()
           } else if (space.system === METADATA_SPACE.system &&
-            ( space.id === METADATA_SPACE.id || space.id === null ) &&
+            (space.id === METADATA_SPACE.id || space.id === null) &&
             arraysAreEqual(key, RESET_KEY)) {
             this.db.initDb()
           } else {
@@ -258,9 +258,9 @@ class MockVM {
           break
         }
 
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         // Logging                                      //
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         case koinos.chain.system_call_id.log: {
           const { message } = koinos.chain.log_arguments.decode(argsBuf)
           if (!this.disableLogging) {
@@ -302,9 +302,9 @@ class MockVM {
           break
         }
 
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         // Cryptography                                 //
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
 
         case koinos.chain.system_call_id.hash: {
           const { code, obj } = koinos.chain.hash_arguments.decode(argsBuf)
@@ -394,20 +394,20 @@ class MockVM {
           const value = verifyVrfResults.values.shift()
 
           if (!value) {
-            throw new ExecutionError(`You did not set a result for verify_vrf_proof`)
+            throw new ExecutionError('You did not set a result for verify_vrf_proof')
           }
 
           this.db.putObject(METADATA_SPACE, VERIFY_VRF_KEY, koinos.chain.list_type.encode(verifyVrfResults).finish())
 
-          const buffer = koinos.chain.verify_vrf_proof_result.encode({value: value.bool_value}).finish()
+          const buffer = koinos.chain.verify_vrf_proof_result.encode({ value: value.bool_value }).finish()
           buffer.copy(retBuf)
           retBytes = buffer.byteLength
           break
         }
 
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
         // Contract Management                          //
-        //////////////////////////////////////////////////
+        /// ///////////////////////////////////////////////
 
         case koinos.chain.system_call_id.call: {
           const { contract_id, entry_point, args } = koinos.chain.call_arguments.decode(argsBuf)
@@ -429,11 +429,11 @@ class MockVM {
 
           const result = koinos.chain.exit_arguments.decode(value.bytes_value)
 
-          if (result.code != 0) {
+          if (result.code !== 0) {
             throw new KoinosError(result.res.error.message, result.code)
           }
 
-          const buffer = koinos.chain.call_result.encode({value: result.res.object}).finish()
+          const buffer = koinos.chain.call_result.encode({ value: result.res.object }).finish()
           buffer.copy(retBuf)
           retBytes = buffer.byteLength
           break
@@ -441,15 +441,9 @@ class MockVM {
 
         case koinos.chain.system_call_id.exit: {
           const exit_args = koinos.chain.exit_arguments.decode(argsBuf)
-          let value = exit_args.res
 
-          if ( exit_args.res )
-            value = exit_args.res
-
-          if (exit_args.code == 0 )
-          {
-            if (exit_args.res && exit_args.res.object)
-            {
+          if (exit_args.code === 0) {
+            if (exit_args.res && exit_args.res.object) {
               if (!this.disableLogging) {
                 console.log(chalk.green('[Contract Result]'), encodeBase64(exit_args.res.object))
               }
@@ -457,15 +451,14 @@ class MockVM {
               this.db.putObject(METADATA_SPACE, CONTRACT_RESULT_KEY, exit_args.res.object)
             }
 
-            throw new KoinosError("", koinos.chain.error_code.success)
+            throw new KoinosError('', koinos.chain.error_code.success)
           }
 
-          if (exit_args.res && exit_args.res.error && exit_args.res.error.message)
-          {
+          if (exit_args.res && exit_args.res.error && exit_args.res.error.message) {
             throw new KoinosError(exit_args.res.error.message, exit_args.code)
           }
 
-          throw new KoinosError("", exit_args.code)
+          throw new KoinosError('', exit_args.code)
         }
 
         case koinos.chain.system_call_id.get_arguments: {
@@ -535,13 +528,13 @@ class MockVM {
             const authority = values[index]
 
             if (arraysAreEqual(authority.bytes_value, account) &&
-              (authority.int32_value === type || (type == 0 && authority.int32_value === null) )) {
+              (authority.int32_value === type || (type === 0 && authority.int32_value === null))) {
               authorized = authority.bool_value
               break
             }
           }
 
-          const buffer = koinos.chain.check_authority_result.encode({value: authorized}).finish()
+          const buffer = koinos.chain.check_authority_result.encode({ value: authorized }).finish()
           buffer.copy(retBuf)
           retBytes = buffer.byteLength
           break
@@ -552,14 +545,14 @@ class MockVM {
       }
     } catch (error) {
       if (error instanceof KoinosError) {
-
         // Still store this metadata for testing purposes
+        // eslint-disable-next-line new-cap
         const exitCodeObj = new koinos.chain.value_type()
         exitCodeObj.int32_value = error.code
 
         this.db.putObject(METADATA_SPACE, EXIT_CODE_KEY, koinos.chain.value_type.encode(exitCodeObj).finish())
 
-        if (error.code != koinos.chain.error_code.success) {
+        if (error.code !== koinos.chain.error_code.success) {
           const msgBytes = StringToUInt8Array(error.message)
           retBuf.set(msgBytes)
           retBytes = msgBytes.byteLength
@@ -611,10 +604,9 @@ class MockVM {
         }
       }
 
-      if (error.code <= koinos.chain.error_code.success || sid == koinos.chain.system_call_id.exit)
-        throw error
+      if (error.code <= koinos.chain.error_code.success || sid === koinos.chain.system_call_id.exit) { throw error }
 
-      retVal = error.code;
+      retVal = error.code
     }
 
     retBytesBuffer[0] = retBytes
