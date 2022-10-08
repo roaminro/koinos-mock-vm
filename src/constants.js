@@ -23,6 +23,7 @@ const COMMIT_TRANSACTION_KEY = new TextEncoder('utf-8').encode('commit_transacti
 const CHAIN_ID_KEY = new TextEncoder('utf-8').encode('chain_id')
 const ERROR_MESSAGE_KEY = new TextEncoder('utf-8').encode('error_message')
 const VERIFY_VRF_KEY = new TextEncoder('utf-8').encode('verify_vrf')
+const OPERATION_KEY = new TextEncoder('utf-8').encode('operation')
 
 module.exports = {
   METADATA_SPACE,
@@ -45,5 +46,6 @@ module.exports = {
   COMMIT_TRANSACTION_KEY,
   CHAIN_ID_KEY,
   ERROR_MESSAGE_KEY,
-  VERIFY_VRF_KEY
+  VERIFY_VRF_KEY,
+  OPERATION_KEY
 }
