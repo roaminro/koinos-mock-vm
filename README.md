@@ -9,10 +9,10 @@ You need to install NodeJS v16 or higher [download](https://nodejs.org/en/downlo
 
 ```sh
 # with npm
-npm install -g koinos-mock-vm
+npm install -g @koinos/mock-vm
 
 # with yarn
-yarn global add koinos-mock-vm
+yarn global add @koinos/mock-vm
 ```
 
 ## Interact with the mock vm
@@ -46,6 +46,9 @@ List of keys used to store the mock data:
 - `transaction`: 
     - object of type `koinos.protocol.transaction` set with the transaction info
     - used by the system calls `get_transaction` and `get_transaction_field`
+- `operation`: 
+    - object of type `koinos.protocol.operation` set with the operation info
+    - used by the system calls `get_operation`
 - `block`: 
     - object of type `koinos.protocol.block` set with the block info
     - used by the system calls `get_block` and `get_block_field`
