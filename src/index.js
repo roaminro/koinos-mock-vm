@@ -30,6 +30,7 @@ const {
   TRANSACTION_KEY,
   BLOCK_KEY,
   AUTHORITY_KEY,
+  SYSTEM_AUTHORITY_KEY,
   RESET_KEY,
   LOGS_KEY,
   EVENTS_KEY,
@@ -550,6 +551,20 @@ class MockVM {
           }
 
           const buffer = koinos.chain.check_authority_result.encode({ value: authorized }).finish()
+          buffer.copy(retBuf)
+          retBytes = buffer.byteLength
+          break
+        }
+        case koinos.chain.system_call_id.check_system_authority: {
+          const dbObject = this.db.getObject(METADATA_SPACE, SYSTEM_AUTHORITY_KEY)
+
+          let authorized = false
+
+          if (dbObject) {
+            authorized = koinos.chain.value_type.decode(dbObject.value).bool_value
+          }
+
+          const buffer = koinos.chain.check_system_authority_result.encode({ value: authorized }).finish()
           buffer.copy(retBuf)
           retBytes = buffer.byteLength
           break
