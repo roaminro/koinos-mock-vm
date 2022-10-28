@@ -14,6 +14,7 @@ const LAST_IRREVERSIBLE_BLOCK_KEY = new TextEncoder('utf-8').encode('last_irreve
 const TRANSACTION_KEY = new TextEncoder('utf-8').encode('transaction')
 const BLOCK_KEY = new TextEncoder('utf-8').encode('block')
 const AUTHORITY_KEY = new TextEncoder('utf-8').encode('authority')
+const SYSTEM_AUTHORITY_KEY = new TextEncoder('utf-8').encode('system_authority')
 const RESET_KEY = new TextEncoder('utf-8').encode('reset')
 const LOGS_KEY = new TextEncoder('utf-8').encode('logs')
 const EVENTS_KEY = new TextEncoder('utf-8').encode('events')
@@ -38,6 +39,7 @@ module.exports = {
   TRANSACTION_KEY,
   BLOCK_KEY,
   AUTHORITY_KEY,
+  SYSTEM_AUTHORITY_KEY,
   RESET_KEY,
   LOGS_KEY,
   EVENTS_KEY,
