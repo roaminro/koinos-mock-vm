@@ -561,7 +561,7 @@ class MockVM {
           let authorized = false
 
           if (dbObject) {
-            authorized = koinos.chain.bool_value.decode(dbObject.value)
+            authorized = koinos.chain.value_type.decode(dbObject.value).bool_value
           }
 
           const buffer = koinos.chain.check_system_authority_result.encode({ value: authorized }).finish()
