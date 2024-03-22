@@ -1,6 +1,6 @@
 {
   "name": "@koinos/mock-vm",
-  "version": "0.4.3",
+  "version": "1.0.0",
   "description": "",
   "main": "src/index.js",
   "scripts": {
@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/koinos/koinos-mock-vm#readme",
   "dependencies": {
-    "@koinos/proto-js": "^0.4.0",
+    "@koinos/proto-js": "1.0.0",
     "@noble/hashes": "^1.0.0",
     "@noble/secp256k1": "^1.5.5",
     "chalk": "4.1.2",
