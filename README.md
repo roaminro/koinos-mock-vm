@@ -9,10 +9,10 @@ You need to install NodeJS v16 or higher [download](https://nodejs.org/en/downlo
 
 ```sh
 # with npm
-npm install -g @koinos/mock-vm
+npm install -g @roamin/koinos-mock-vm
 
 # with yarn
-yarn global add @koinos/mock-vm
+yarn global add @roamin/koinos-mock-vm
 ```
 
 ## Interact with the mock vm
