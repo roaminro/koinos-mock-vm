@@ -14,7 +14,8 @@
     "url": "git+https://github.com/koinos/koinos-mock-vm.git"
   },
   "keywords": [],
-  "author": "Koinos Group <contact@koinos.group>",
+  "author": "Roamin Ro",
+  "contributors": ["Julián González", "Koinos Group <contact@koinos.group>"],
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/koinos/koinos-mock-vm/issues"
